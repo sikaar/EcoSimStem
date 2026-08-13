@@ -1,0 +1,9 @@
+:root{
+  --ink:#0d1416; --panel:rgba(16,25,28,.88); --panel2:rgba(10,17,19,.94);
+  --line:rgba(159,216,221,.16); --line2:rgba(159,216,221,.28);
+  --text:#cfdcd9; --dim:#7d918f; --dim2:#4d5b59;
+  --teal:#63b3c4; --deep:#2f6f86;
+  --rabbit:#c2a479; --fox:#c94f3d; --leaf:#77b258; --gold:#f0c05a;
+  --sans:"Space Grotesk",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
