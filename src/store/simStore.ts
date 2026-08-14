@@ -33,6 +33,12 @@ interface SimStoreState extends SimSnapshot {
    * player has time to read it, independent of the manual pause button. */
   showDayReport: (report: DayReport) => void;
   dismissDayReport: () => void;
+  /** Bumped by the tuning panel's Restart button. App.tsx's setup effect
+   * depends on this, so a change tears down and recreates the whole sim —
+   * the only way creation-time-only tuning fields (predatorStart, den
+   * counts) actually take effect. */
+  restartSignal: number;
+  requestRestart: () => void;
 }
 
 export const useSimStore = create<SimStoreState>((set) => ({
@@ -55,6 +61,14 @@ export const useSimStore = create<SimStoreState>((set) => ({
     set((state) => ({
       previousDayReport: state.dayReport ?? state.previousDayReport,
       dayReport: null,
+      paused: false,
+    })),
+  restartSignal: 0,
+  requestRestart: () =>
+    set((state) => ({
+      restartSignal: state.restartSignal + 1,
+      dayReport: null,
+      previousDayReport: null,
       paused: false,
     })),
 }));
