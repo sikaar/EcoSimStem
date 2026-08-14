@@ -39,6 +39,15 @@ interface SimStoreState extends SimSnapshot {
    * counts) actually take effect. */
   restartSignal: number;
   requestRestart: () => void;
+  /** The day-phase machine correctly pauses at `draft` every
+   * draftIntervalDays (§4.2) waiting for a card pick — but the card draft
+   * UI is Phase 2 and doesn't exist yet, so without this the sim gets
+   * stuck there forever with nothing to dismiss it. Placeholder until
+   * real cards land. */
+  draftPending: boolean;
+  draftDismissRequested: boolean;
+  showDraftPending: () => void;
+  requestDraftDismiss: () => void;
 }
 
 export const useSimStore = create<SimStoreState>((set) => ({
@@ -70,5 +79,11 @@ export const useSimStore = create<SimStoreState>((set) => ({
       dayReport: null,
       previousDayReport: null,
       paused: false,
+      draftPending: false,
+      draftDismissRequested: false,
     })),
+  draftPending: false,
+  draftDismissRequested: false,
+  showDraftPending: () => set({ draftPending: true }),
+  requestDraftDismiss: () => set({ draftPending: false, draftDismissRequested: true }),
 }));
