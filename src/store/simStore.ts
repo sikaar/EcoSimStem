@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { DayPhase } from '../engine/day';
+import type { DayReport } from '../engine/systems/lifecycle';
 
 /**
  * UI reads aggregates from here — never per-step, never the live entity
@@ -20,9 +21,18 @@ export interface SimSnapshot {
 interface SimStoreState extends SimSnapshot {
   paused: boolean;
   speedMultiplier: number;
+  /** Currently displayed day report, or null when none is showing. */
+  dayReport: DayReport | null;
+  /** The last report that was dismissed — the baseline for the "▲/▼ vs
+   * yesterday" deltas the *next* report shows (§8.2). */
+  previousDayReport: DayReport | null;
   setSnapshot: (snapshot: SimSnapshot) => void;
   togglePaused: () => void;
   setSpeedMultiplier: (multiplier: number) => void;
+  /** Shown briefly at resolve (§8.2) — also soft-pauses the sim so the
+   * player has time to read it, independent of the manual pause button. */
+  showDayReport: (report: DayReport) => void;
+  dismissDayReport: () => void;
 }
 
 export const useSimStore = create<SimStoreState>((set) => ({
@@ -35,7 +45,16 @@ export const useSimStore = create<SimStoreState>((set) => ({
   meanSense: 0,
   paused: false,
   speedMultiplier: 1,
+  dayReport: null,
+  previousDayReport: null,
   setSnapshot: (snapshot) => set(snapshot),
   togglePaused: () => set((state) => ({ paused: !state.paused })),
   setSpeedMultiplier: (multiplier) => set({ speedMultiplier: multiplier }),
+  showDayReport: (report) => set({ dayReport: report, paused: true }),
+  dismissDayReport: () =>
+    set((state) => ({
+      previousDayReport: state.dayReport ?? state.previousDayReport,
+      dayReport: null,
+      paused: false,
+    })),
 }));

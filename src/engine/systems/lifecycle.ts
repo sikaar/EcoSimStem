@@ -59,6 +59,12 @@ export interface DayReport {
   born: number;
   survived: number;
   deaths: Record<DeathCause, number>;
+  /** Mean genes among surviving rabbits at the moment of resolve — the
+   * legible trend line the day report exists to surface (§8.2, §8.6:
+   * "your rabbits got faster, there are fewer of them"). 0 if nobody
+   * survived to report on. */
+  meanSense: number;
+  meanSpeed: number;
 }
 
 export function emptyDeathTally(): Record<DeathCause, number> {
