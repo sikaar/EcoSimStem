@@ -62,9 +62,13 @@ export interface DayReport {
   /** Mean genes among surviving rabbits at the moment of resolve — the
    * legible trend line the day report exists to surface (§8.2, §8.6:
    * "your rabbits got faster, there are fewer of them"). 0 if nobody
-   * survived to report on. */
+   * survived to report on. All five, not just sense/speed, so the genes
+   * panel's sparklines (§9.2) have a full trait picture per day. */
   meanSense: number;
   meanSpeed: number;
+  meanUrge: number;
+  meanGest: number;
+  meanDes: number;
 }
 
 export function emptyDeathTally(): Record<DeathCause, number> {

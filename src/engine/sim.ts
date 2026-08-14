@@ -358,16 +358,19 @@ function resolveDay(sim: SimState): void {
     }
   }
 
-  const senseSum = sim.rabbits.reduce((sum, r) => sum + r.genes.sense, 0);
-  const speedSum = sim.rabbits.reduce((sum, r) => sum + r.genes.speed, 0);
+  const meanGene = (key: keyof Rabbit['genes']): number =>
+    sim.rabbits.length ? sim.rabbits.reduce((sum, r) => sum + r.genes[key], 0) / sim.rabbits.length : 0;
 
   sim.lastDayReport = {
     day: sim.day.day,
     born: sim.bornToday,
     survived: sim.rabbits.length + sim.predators.length,
     deaths: sim.deathTally,
-    meanSense: sim.rabbits.length ? senseSum / sim.rabbits.length : 0,
-    meanSpeed: sim.rabbits.length ? speedSum / sim.rabbits.length : 0,
+    meanSense: meanGene('sense'),
+    meanSpeed: meanGene('speed'),
+    meanUrge: meanGene('urge'),
+    meanGest: meanGene('gest'),
+    meanDes: meanGene('des'),
   };
   sim.deathTally = emptyDeathTally();
   sim.bornToday = 0;

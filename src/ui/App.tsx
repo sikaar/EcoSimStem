@@ -8,6 +8,7 @@ import { createOrbitControls } from '../render/orbit';
 import { createCreatureLayers } from '../render/creatureView';
 import { useSimStore, type SimSnapshot } from '../store/simStore';
 import { Census } from './panels/Census';
+import { Genes } from './panels/Genes';
 import { DayPhaseIndicator } from './components/DayPhaseIndicator';
 import { PlayBar } from './controls/PlayBar';
 import { TuningPanel } from './controls/TuningPanel';
@@ -81,6 +82,11 @@ export function App() {
 
         if (sim.lastDayReport && sim.lastDayReport.day !== lastReportedDay) {
           lastReportedDay = sim.lastDayReport.day;
+          // Recorded for every day, including draft days, so the genes
+          // panel's sparklines have no gaps — separate from *showing* the
+          // report, which §8.2 skips on draft days (see below).
+          useSimStore.getState().recordDayReport(sim.lastDayReport);
+
           // §8.2: "auto-skipped when a draft follows" — a draft-interval
           // day would otherwise show the report AND the draft placeholder
           // stacked on top of each other, since they're triggered
@@ -123,6 +129,7 @@ export function App() {
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none' }} />
       <DayPhaseIndicator />
       <Census />
+      <Genes />
       <PlayBar />
       <TuningPanel />
       <DayReport />

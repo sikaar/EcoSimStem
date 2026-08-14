@@ -18,6 +18,20 @@ export interface SimSnapshot {
   meanSense: number;
 }
 
+/** One point per day for the genes panel's sparklines (§9.2) — recorded
+ * for every day report, including draft days whose report display gets
+ * skipped (§8.2), so the trend line has no gaps. */
+export interface GeneHistoryPoint {
+  day: number;
+  sense: number;
+  speed: number;
+  urge: number;
+  gest: number;
+  des: number;
+}
+
+const GENE_HISTORY_LIMIT = 60;
+
 interface SimStoreState extends SimSnapshot {
   paused: boolean;
   speedMultiplier: number;
@@ -33,6 +47,11 @@ interface SimStoreState extends SimSnapshot {
    * player has time to read it, independent of the manual pause button. */
   showDayReport: (report: DayReport) => void;
   dismissDayReport: () => void;
+  /** Trend history for the genes panel. Separate from showDayReport
+   * because that's display-and-pause only and gets skipped entirely on
+   * draft days — history recording must not skip right along with it. */
+  geneHistory: GeneHistoryPoint[];
+  recordDayReport: (report: DayReport) => void;
   /** Bumped by the tuning panel's Restart button. App.tsx's setup effect
    * depends on this, so a change tears down and recreates the whole sim —
    * the only way creation-time-only tuning fields (predatorStart, den
@@ -72,6 +91,14 @@ export const useSimStore = create<SimStoreState>((set) => ({
       dayReport: null,
       paused: false,
     })),
+  geneHistory: [],
+  recordDayReport: (report) =>
+    set((state) => ({
+      geneHistory: [
+        ...state.geneHistory,
+        { day: report.day, sense: report.meanSense, speed: report.meanSpeed, urge: report.meanUrge, gest: report.meanGest, des: report.meanDes },
+      ].slice(-GENE_HISTORY_LIMIT),
+    })),
   restartSignal: 0,
   requestRestart: () =>
     set((state) => ({
@@ -81,6 +108,7 @@ export const useSimStore = create<SimStoreState>((set) => ({
       paused: false,
       draftPending: false,
       draftDismissRequested: false,
+      geneHistory: [],
     })),
   draftPending: false,
   draftDismissRequested: false,
