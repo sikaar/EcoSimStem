@@ -48,8 +48,8 @@ describe('attemptMate', () => {
     expect(accepted).toBe(true);
     expect(result!.female.pregnantDaysLeft).toBe(female.genes.gest);
     expect(result!.female.carryGenes).toEqual(male.genes);
-    expect(result!.female.cooldownDays).toBe(female.genes.gest + 5);
-    expect(result!.male.cooldownDays).toBe(3);
+    expect(result!.female.cooldownDays).toBe(female.genes.gest + 1);
+    expect(result!.male.cooldownDays).toBe(1);
   });
 
   it('never mutates the inputs — pure function', () => {

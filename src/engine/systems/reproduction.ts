@@ -17,10 +17,16 @@ export function canBreed(state: Pick<Rabbit, 'ageDays' | 'maturityDays' | 'pregn
 
 const MALE_ACCEPT_BASE = 0.25;
 const MALE_ACCEPT_DES_WEIGHT = 0.7;
-const MALE_POST_MATE_COOLDOWN_DAYS = 3;
+// The prototype's male/female post-mate cooldowns (3s, gest+5s) were tuned
+// for a continuous-time model where `gest` itself was in seconds. Now that
+// gest is 1-4 *days*, reusing those literal numbers as day-counts would
+// make a female infertile for gest+5 days after every litter (6-9 days —
+// nearly half a 20-day run) purely from an unrescaled unit carry-over, not
+// a deliberate balance choice. Rescaled down to a short day-count instead.
+const MALE_POST_MATE_COOLDOWN_DAYS = 1;
 /** Buffer added on top of gestation length so a female doesn't immediately
  * re-enter the mating pool the instant she gives birth. */
-const FEMALE_POST_CONCEIVE_COOLDOWN_BUFFER_DAYS = 5;
+const FEMALE_POST_CONCEIVE_COOLDOWN_BUFFER_DAYS = 1;
 
 export interface MateAttemptResult {
   accepted: boolean;

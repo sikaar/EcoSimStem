@@ -231,6 +231,23 @@ export function distanceToNearestOwnDen(pos: Point, dens: readonly Den[], specie
   return best;
 }
 
+/** The actual nearest own-species den, not just its distance — used to
+ * supply the RETURN drive's target (§6.2). A den is always "known," unlike
+ * food/water/mates, so this ignores sense range. */
+export function nearestOwnDen(pos: Point, dens: readonly Den[], species: DenSpecies): Den | null {
+  let best: Den | null = null;
+  let bestDist = Infinity;
+  for (const d of dens) {
+    if (d.species !== species) continue;
+    const dd = dist(d, pos);
+    if (dd < bestDist) {
+      bestDist = dd;
+      best = d;
+    }
+  }
+  return best;
+}
+
 export function isHome(pos: Point, dens: readonly Den[], species: DenSpecies, denRadius: number): boolean {
   return distanceToNearestOwnDen(pos, dens, species) <= denRadius;
 }
