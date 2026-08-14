@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { liveTuning } from '../store/liveTuning';
 import { createSim, step, type SimState } from '../engine/sim';
+import { completeDraft } from '../engine/day';
 import { createFixedTimestepLoop } from '../engine/loop';
 import { createScene } from '../render/scene';
 import { createOrbitControls } from '../render/orbit';
@@ -11,6 +12,7 @@ import { DayPhaseIndicator } from './components/DayPhaseIndicator';
 import { PlayBar } from './controls/PlayBar';
 import { TuningPanel } from './controls/TuningPanel';
 import { DayReport } from './screens/DayReport';
+import { DraftModal } from './screens/DraftModal';
 
 const SNAPSHOT_INTERVAL_MS = 250; // ~4Hz per §4.1 — never per-step
 
@@ -54,8 +56,21 @@ export function App() {
     const loop = createFixedTimestepLoop({
       dt: 1 / 60,
       step: (dt) => {
-        if (useSimStore.getState().paused) return;
+        const store = useSimStore.getState();
+        if (store.paused) return;
         step(sim, dt);
+
+        // draft never auto-advances (§4.2) — without a real card-draft UI
+        // (Phase 2), this is the only way out of it once a run hits a
+        // draftIntervalDays boundary.
+        if (sim.day.phase === 'draft') {
+          if (store.draftDismissRequested) {
+            sim.day = completeDraft(sim.day);
+            useSimStore.setState({ draftDismissRequested: false });
+          } else if (!store.draftPending) {
+            store.showDraftPending();
+          }
+        }
       },
       render: () => {
         creatures.rabbits.sync(sim.rabbits);
@@ -66,7 +81,14 @@ export function App() {
 
         if (sim.lastDayReport && sim.lastDayReport.day !== lastReportedDay) {
           lastReportedDay = sim.lastDayReport.day;
-          useSimStore.getState().showDayReport(sim.lastDayReport);
+          // §8.2: "auto-skipped when a draft follows" — a draft-interval
+          // day would otherwise show the report AND the draft placeholder
+          // stacked on top of each other, since they're triggered
+          // independently (report here in render(), draft in step() below).
+          const isDraftDay = sim.lastDayReport.day % sim.tuning.draftIntervalDays === 0;
+          if (!isDraftDay) {
+            useSimStore.getState().showDayReport(sim.lastDayReport);
+          }
         }
       },
       getSpeedMultiplier: () => useSimStore.getState().speedMultiplier,
@@ -104,6 +126,7 @@ export function App() {
       <PlayBar />
       <TuningPanel />
       <DayReport />
+      <DraftModal />
     </main>
   );
 }
