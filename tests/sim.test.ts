@@ -51,6 +51,21 @@ describe('step', () => {
     expect(sim.lastDayReport!.survived).toBeGreaterThanOrEqual(0);
   });
 
+  it('reports mean sense/speed matching the surviving rabbit population (§8.2)', () => {
+    const sim = createSim(1, DEFAULT_TUNING);
+    runUntilDay(sim, 2, 1 / 60);
+    const report = sim.lastDayReport!;
+    if (sim.rabbits.length === 0) {
+      expect(report.meanSense).toBe(0);
+      expect(report.meanSpeed).toBe(0);
+    } else {
+      const expectedSense = sim.rabbits.reduce((s, r) => s + r.genes.sense, 0) / sim.rabbits.length;
+      const expectedSpeed = sim.rabbits.reduce((s, r) => s + r.genes.speed, 0) / sim.rabbits.length;
+      expect(report.meanSense).toBeCloseTo(expectedSense);
+      expect(report.meanSpeed).toBeCloseTo(expectedSpeed);
+    }
+  });
+
   it('is deterministic across two independent runs of the same seed for several days', () => {
     const simA = createSim(3, DEFAULT_TUNING);
     const simB = createSim(3, DEFAULT_TUNING);
