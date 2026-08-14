@@ -51,18 +51,21 @@ describe('step', () => {
     expect(sim.lastDayReport!.survived).toBeGreaterThanOrEqual(0);
   });
 
-  it('reports mean sense/speed matching the surviving rabbit population (§8.2)', () => {
+  it('reports mean genes matching the surviving rabbit population (§8.2, §9.2)', () => {
     const sim = createSim(1, DEFAULT_TUNING);
     runUntilDay(sim, 2, 1 / 60);
     const report = sim.lastDayReport!;
+    const geneKeys = ['sense', 'speed', 'urge', 'gest', 'des'] as const;
+    const reportKeys = ['meanSense', 'meanSpeed', 'meanUrge', 'meanGest', 'meanDes'] as const;
     if (sim.rabbits.length === 0) {
-      expect(report.meanSense).toBe(0);
-      expect(report.meanSpeed).toBe(0);
+      for (const key of reportKeys) expect(report[key]).toBe(0);
     } else {
-      const expectedSense = sim.rabbits.reduce((s, r) => s + r.genes.sense, 0) / sim.rabbits.length;
-      const expectedSpeed = sim.rabbits.reduce((s, r) => s + r.genes.speed, 0) / sim.rabbits.length;
-      expect(report.meanSense).toBeCloseTo(expectedSense);
-      expect(report.meanSpeed).toBeCloseTo(expectedSpeed);
+      for (let i = 0; i < geneKeys.length; i++) {
+        const geneKey = geneKeys[i]!;
+        const reportKey = reportKeys[i]!;
+        const expected = sim.rabbits.reduce((s, r) => s + r.genes[geneKey], 0) / sim.rabbits.length;
+        expect(report[reportKey]).toBeCloseTo(expected);
+      }
     }
   });
 
