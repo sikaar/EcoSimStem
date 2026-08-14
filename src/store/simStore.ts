@@ -30,7 +30,7 @@ export interface GeneHistoryPoint {
   des: number;
 }
 
-const GENE_HISTORY_LIMIT = 60;
+export const GENE_HISTORY_LIMIT = 60;
 
 interface SimStoreState extends SimSnapshot {
   paused: boolean;

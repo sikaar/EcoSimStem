@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { liveTuning } from '../store/liveTuning';
+import { simRef } from '../store/simRef';
 import { createSim, step, type SimState } from '../engine/sim';
 import { completeDraft } from '../engine/day';
 import { createFixedTimestepLoop } from '../engine/loop';
@@ -9,6 +10,7 @@ import { createCreatureLayers } from '../render/creatureView';
 import { useSimStore, type SimSnapshot } from '../store/simStore';
 import { Census } from './panels/Census';
 import { Genes } from './panels/Genes';
+import { TraitCloud } from './panels/TraitCloud';
 import { DayPhaseIndicator } from './components/DayPhaseIndicator';
 import { PlayBar } from './controls/PlayBar';
 import { TuningPanel } from './controls/TuningPanel';
@@ -44,6 +46,7 @@ export function App() {
     // exactly what bumping restartSignal below triggers.
     const seed = Math.floor(Math.random() * 1e9);
     const sim = createSim(seed, liveTuning);
+    simRef.current = sim;
 
     const { scene, camera, renderer, resize, dispose: disposeScene } = createScene(canvas, sim.world);
     const controls = createOrbitControls(camera, canvas);
@@ -121,6 +124,7 @@ export function App() {
       controls.dispose();
       creatures.dispose();
       disposeScene();
+      if (simRef.current === sim) simRef.current = null;
     };
   }, [restartSignal]);
 
@@ -130,6 +134,7 @@ export function App() {
       <DayPhaseIndicator />
       <Census />
       <Genes />
+      <TraitCloud />
       <PlayBar />
       <TuningPanel />
       <DayReport />
