@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { DEFAULT_TUNING } from '../config/tuning';
+import { liveTuning } from '../store/liveTuning';
 import { createSim, step, type SimState } from '../engine/sim';
 import { createFixedTimestepLoop } from '../engine/loop';
 import { createScene } from '../render/scene';
@@ -9,6 +9,7 @@ import { useSimStore, type SimSnapshot } from '../store/simStore';
 import { Census } from './panels/Census';
 import { DayPhaseIndicator } from './components/DayPhaseIndicator';
 import { PlayBar } from './controls/PlayBar';
+import { TuningPanel } from './controls/TuningPanel';
 import { DayReport } from './screens/DayReport';
 
 const SNAPSHOT_INTERVAL_MS = 250; // ~4Hz per §4.1 — never per-step
@@ -28,13 +29,18 @@ function computeSnapshot(sim: SimState): SimSnapshot {
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const restartSignal = useSimStore((s) => s.restartSignal);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
+    // liveTuning is read by reference, not copied — most debug-panel edits
+    // land on the very next tick. Fields only read inside createSim
+    // (predatorStart, den counts) need this effect to re-run, which is
+    // exactly what bumping restartSignal below triggers.
     const seed = Math.floor(Math.random() * 1e9);
-    const sim = createSim(seed, DEFAULT_TUNING);
+    const sim = createSim(seed, liveTuning);
 
     const { scene, camera, renderer, resize, dispose: disposeScene } = createScene(canvas, sim.world);
     const controls = createOrbitControls(camera, canvas);
@@ -88,7 +94,7 @@ export function App() {
       creatures.dispose();
       disposeScene();
     };
-  }, []);
+  }, [restartSignal]);
 
   return (
     <main style={{ position: 'relative', height: '100%' }}>
@@ -96,6 +102,7 @@ export function App() {
       <DayPhaseIndicator />
       <Census />
       <PlayBar />
+      <TuningPanel />
       <DayReport />
     </main>
   );
