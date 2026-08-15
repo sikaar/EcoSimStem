@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { loadPolyforkAsset } from './polyforkAssets';
+import { loadPolyforkAsset, loadWalkRuntime, type WalkGait } from './polyforkAssets';
 
 /**
  * EntityLayer starts every species on a procedural placeholder mesh — the
@@ -21,14 +21,29 @@ export interface PositionedEntity {
   dir?: number;
 }
 
+interface Instance {
+  obj: THREE.Object3D;
+  gait: WalkGait | null;
+  distance: number;
+  lastX: number;
+  lastZ: number;
+}
+
 export class EntityLayer<T extends PositionedEntity> {
-  private readonly instances = new Map<number, THREE.Object3D>();
+  private readonly instances = new Map<number, Instance>();
   private factory: () => THREE.Object3D;
   private yOffset: number;
+  private createGait: ((obj: THREE.Object3D) => WalkGait | null) | null;
 
-  constructor(private readonly scene: THREE.Scene, factory: () => THREE.Object3D, yOffset: number = 0) {
+  constructor(
+    private readonly scene: THREE.Scene,
+    factory: () => THREE.Object3D,
+    yOffset: number = 0,
+    createGait: ((obj: THREE.Object3D) => WalkGait | null) | null = null,
+  ) {
     this.factory = factory;
     this.yOffset = yOffset;
+    this.createGait = createGait;
   }
 
   /** Swap onto a new factory (e.g. a loaded Polyfork model replacing the
@@ -37,11 +52,22 @@ export class EntityLayer<T extends PositionedEntity> {
    * a mix of boxes and models for the same species. Polyfork models are
    * already grounded (minY=0 per their metadata), hence the 0 default —
    * only the procedural placeholders need a yOffset to sit flush on the
-   * ground plane. */
-  setFactory(factory: () => THREE.Object3D, yOffset: number = 0): void {
+   * ground plane.
+   *
+   * `createGait`, when given, builds a per-instance walk.mjs IK solver
+   * (§11.2) for a rigged model — one per clone, since each has its own
+   * bone hierarchy. Left null for species with no rig (plants) or when the
+   * gait runtime failed to load, in which case the model still shows, just
+   * unanimated — better than falling all the way back to the box. */
+  setFactory(
+    factory: () => THREE.Object3D,
+    yOffset: number = 0,
+    createGait: ((obj: THREE.Object3D) => WalkGait | null) | null = null,
+  ): void {
     this.factory = factory;
     this.yOffset = yOffset;
-    for (const obj of this.instances.values()) this.scene.remove(obj);
+    this.createGait = createGait;
+    for (const { obj } of this.instances.values()) this.scene.remove(obj);
     this.instances.clear();
   }
 
@@ -49,24 +75,40 @@ export class EntityLayer<T extends PositionedEntity> {
     const seen = new Set<number>();
     for (const entity of entities) {
       seen.add(entity.id);
-      let obj = this.instances.get(entity.id);
-      if (!obj) {
-        obj = this.factory();
+      let inst = this.instances.get(entity.id);
+      if (!inst) {
+        const obj = this.factory();
         this.scene.add(obj);
-        this.instances.set(entity.id, obj);
+        // lastX/lastZ start at the spawn position, not the origin — a
+        // fresh instance's first sync() must not register a fake "distance
+        // travelled" burst from (0,0) to wherever the entity actually is.
+        inst = { obj, gait: this.createGait?.(obj) ?? null, distance: 0, lastX: entity.x, lastZ: entity.z };
+        this.instances.set(entity.id, inst);
       }
-      obj.position.set(entity.x, this.yOffset, entity.z);
-      if (entity.dir !== undefined) obj.rotation.y = entity.dir;
+      const dx = entity.x - inst.lastX;
+      const dz = entity.z - inst.lastZ;
+      inst.lastX = entity.x;
+      inst.lastZ = entity.z;
+      inst.obj.position.set(entity.x, this.yOffset, entity.z);
+      if (entity.dir !== undefined) inst.obj.rotation.y = entity.dir;
+      if (inst.gait) {
+        // poseAt wants cumulative distance, not a per-frame delta (§11.2:
+        // "phase from distance travelled, not from time") — a creature
+        // standing still (dx=dz=0) correctly holds its last pose instead
+        // of animating in place.
+        inst.distance += Math.hypot(dx, dz);
+        inst.gait.poseAt(inst.distance);
+      }
     }
-    for (const [id, obj] of this.instances) {
+    for (const [id, inst] of this.instances) {
       if (seen.has(id)) continue;
-      this.scene.remove(obj);
+      this.scene.remove(inst.obj);
       this.instances.delete(id);
     }
   }
 
   dispose(): void {
-    for (const obj of this.instances.values()) this.scene.remove(obj);
+    for (const { obj } of this.instances.values()) this.scene.remove(obj);
     this.instances.clear();
   }
 }
@@ -87,7 +129,7 @@ const RABBIT_ASSET = { id: 'forest-rabbit-ea2da0', tier: 'free' } as const;
 const PREDATOR_ASSET = { id: 'red-fox-5c3bc0', tier: 'pro' } as const;
 const PLANT_ASSET = { id: 'grass-tuft-a40a08', tier: 'free' } as const;
 
-export function createCreatureLayers(scene: THREE.Scene): CreatureLayers {
+export function createCreatureLayers(scene: THREE.Scene, ground: THREE.Object3D): CreatureLayers {
   const rabbitGeom = new THREE.BoxGeometry(0.5, 0.4, 0.7);
   const rabbitMat = new THREE.MeshPhongMaterial({ color: 0xc2a479, flatShading: true });
   const predatorGeom = new THREE.BoxGeometry(0.6, 0.5, 1.0);
@@ -105,12 +147,34 @@ export function createCreatureLayers(scene: THREE.Scene): CreatureLayers {
   // m / m/s). Mesh.clone(true) shares geometry/material across instances
   // by default — the same "share geometry and materials" rule the
   // procedural boxes above already follow.
-  void loadPolyforkAsset(RABBIT_ASSET.id, RABBIT_ASSET.tier).then((template) => {
-    if (template) rabbits.setFactory(() => template.clone(true));
-  });
-  void loadPolyforkAsset(PREDATOR_ASSET.id, PREDATOR_ASSET.tier).then((template) => {
-    if (template) predators.setFactory(() => template.clone(true));
-  });
+  //
+  // Walk-cycle IK (§11.2): rabbit and fox are both `has_ik: "legs"` rigs
+  // with a `gait` block, but neither downloaded GLB carries a baked
+  // animation clip (confirmed against the actual bytes, not just the
+  // asset listing) — walk.mjs's distance-driven poseAt() is the real path,
+  // not a fallback. The ground is a single flat plane for the whole world
+  // (scene.ts), so one raycastGround() covers every instance of every
+  // species; only the per-instance walker() call needs to be per-clone.
+  const walkRuntimePromise = loadWalkRuntime();
+
+  function wireAnimatedSpecies(layer: EntityLayer<PositionedEntity>, asset: { id: string; tier: 'free' | 'pro' }): void {
+    void Promise.all([loadPolyforkAsset(asset.id, asset.tier), walkRuntimePromise]).then(([template, walk]) => {
+      if (!template) return;
+      if (!walk) {
+        layer.setFactory(() => template.clone(true));
+        return;
+      }
+      const groundQuery = walk.raycastGround([ground]);
+      layer.setFactory(
+        () => template.clone(true),
+        0,
+        (obj) => walk.walker(obj, { ground: groundQuery }),
+      );
+    });
+  }
+
+  wireAnimatedSpecies(rabbits, RABBIT_ASSET);
+  wireAnimatedSpecies(predators, PREDATOR_ASSET);
   void loadPolyforkAsset(PLANT_ASSET.id, PLANT_ASSET.tier).then((template) => {
     if (template) plants.setFactory(() => template.clone(true));
   });
