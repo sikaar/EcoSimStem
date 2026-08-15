@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { liveTuning, resetLiveTuning } from '../../store/liveTuning';
 import { useSimStore } from '../../store/simStore';
 import { Knob } from '../components/Knob';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import type { Tuning } from '../../engine/types';
 
 /**
@@ -60,6 +61,17 @@ const toggleStyle: CSSProperties = {
   cursor: 'pointer',
 };
 
+// Bottom-right instead of bottom-left, and smaller — bottom-left is where
+// PlayBar's centered pill reaches on a narrow phone, so left would collide.
+const mobileToggleStyle: CSSProperties = {
+  ...toggleStyle,
+  bottom: 8,
+  left: 'auto',
+  right: 8,
+  fontSize: 9,
+  padding: '5px 9px',
+};
+
 const panelStyle: CSSProperties = {
   position: 'absolute',
   bottom: 50,
@@ -73,6 +85,15 @@ const panelStyle: CSSProperties = {
   border: '1px solid var(--line2)',
   borderRadius: 4,
   padding: '12px 14px',
+};
+
+const mobilePanelStyle: CSSProperties = {
+  ...panelStyle,
+  bottom: 44,
+  left: 'auto',
+  right: 8,
+  width: 'min(240px, calc(100vw - 16px))',
+  maxHeight: '50vh',
 };
 
 const groupLabelStyle: CSSProperties = {
@@ -89,6 +110,7 @@ export function TuningPanel() {
   const [open, setOpen] = useState(false);
   const [, bump] = useState(0);
   const requestRestart = useSimStore((s) => s.requestRestart);
+  const isMobile = useIsMobile();
 
   const setField = (key: keyof Tuning) => (value: number) => {
     liveTuning[key] = value;
@@ -97,14 +119,14 @@ export function TuningPanel() {
 
   if (!open) {
     return (
-      <button style={toggleStyle} onClick={() => setOpen(true)}>
+      <button style={isMobile ? mobileToggleStyle : toggleStyle} onClick={() => setOpen(true)}>
         TUNING
       </button>
     );
   }
 
   return (
-    <div style={panelStyle}>
+    <div style={isMobile ? mobilePanelStyle : panelStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 10, letterSpacing: '0.14em', color: 'var(--dim)' }}>DEBUG TUNING</span>
         <button

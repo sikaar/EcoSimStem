@@ -25,6 +25,18 @@ const panelStyle: CSSProperties = {
   padding: '10px 14px 12px',
 };
 
+// Used inside StatsDrawer on mobile — see Genes.tsx's inlinePanelStyle for
+// why this drops the absolute positioning.
+const inlinePanelStyle: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  color: 'var(--dim)',
+  background: 'var(--panel)',
+  border: '1px solid var(--line)',
+  borderRadius: 4,
+  padding: '10px 14px 12px',
+  width: '100%',
+};
+
 const headerStyle: CSSProperties = {
   fontSize: 9,
   letterSpacing: '0.16em',
@@ -39,7 +51,7 @@ const legendStyle: CSSProperties = {
   textAlign: 'center',
 };
 
-export function TraitCloud() {
+export function TraitCloud({ inline = false }: { inline?: boolean } = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -80,7 +92,7 @@ export function TraitCloud() {
   }, []);
 
   return (
-    <div style={panelStyle}>
+    <div style={inline ? inlinePanelStyle : panelStyle}>
       <div style={headerStyle}>TRAIT CLOUD</div>
       <canvas ref={canvasRef} style={{ width: '100%', height: 150, display: 'block', touchAction: 'none', cursor: 'grab' }} />
       <div style={legendStyle}>sense × speed × urge</div>

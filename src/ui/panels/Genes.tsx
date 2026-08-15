@@ -32,6 +32,18 @@ const panelStyle: CSSProperties = {
   width: 130,
 };
 
+// Used inside StatsDrawer on mobile, which already provides its own
+// absolutely-positioned, scrollable container — this just needs to fill it.
+const inlinePanelStyle: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  color: 'var(--dim)',
+  background: 'var(--panel)',
+  border: '1px solid var(--line)',
+  borderRadius: 4,
+  padding: '10px 14px',
+  width: '100%',
+};
+
 const headerStyle: CSSProperties = {
   fontSize: 9,
   letterSpacing: '0.16em',
@@ -47,14 +59,14 @@ const labelRowStyle: CSSProperties = {
   marginBottom: 2,
 };
 
-export function Genes() {
+export function Genes({ inline = false }: { inline?: boolean } = {}) {
   const geneHistory = useSimStore((s) => s.geneHistory);
   if (geneHistory.length === 0) return null;
 
   const latest = geneHistory[geneHistory.length - 1]!;
 
   return (
-    <div style={panelStyle}>
+    <div style={inline ? inlinePanelStyle : panelStyle}>
       <div style={headerStyle}>GENES · DAY {latest.day}</div>
       {TRAITS.map((trait) => (
         <div key={trait.key} style={rowStyle}>
