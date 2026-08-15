@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_TUNING } from '../src/config/tuning';
-import { createSim, runUntilDay, step } from '../src/engine/sim';
+import { createSim, runUntilDay, spawnPredators, spawnRabbits, step } from '../src/engine/sim';
 
 describe('createSim', () => {
   it('spawns the expected founding populations', () => {
@@ -77,6 +77,48 @@ describe('step', () => {
     expect(simA.rabbits).toEqual(simB.rabbits);
     expect(simA.predators).toEqual(simB.predators);
     expect(simA.deathTally).toEqual(simB.deathTally);
+  });
+});
+
+describe('spawnRabbits / spawnPredators', () => {
+  it('injects mature rabbits into an already-running sim, at rabbit dens', () => {
+    const sim = createSim(1, DEFAULT_TUNING);
+    const before = sim.rabbits.length;
+    const spawned = spawnRabbits(sim, 5);
+    expect(spawned).toBe(5);
+    expect(sim.rabbits).toHaveLength(before + 5);
+    const rabbitDens = sim.world.dens.filter((d) => d.species === 'rabbit');
+    for (const rabbit of sim.rabbits.slice(-5)) {
+      const nearestDist = Math.min(...rabbitDens.map((d) => Math.hypot(d.x - rabbit.x, d.z - rabbit.z)));
+      expect(nearestDist).toBeLessThan(3);
+    }
+  });
+
+  it('injects predators into an already-running sim, at predator dens — the "release" path for a run that started with none', () => {
+    const tuning = { ...DEFAULT_TUNING, predatorStart: 0 };
+    const sim = createSim(1, tuning);
+    expect(sim.predators).toHaveLength(0);
+    const spawned = spawnPredators(sim, 4);
+    expect(spawned).toBe(4);
+    expect(sim.predators).toHaveLength(4);
+    const predatorDens = sim.world.dens.filter((d) => d.species === 'predator');
+    for (const predator of sim.predators) {
+      const nearestDist = Math.min(...predatorDens.map((d) => Math.hypot(d.x - predator.x, d.z - predator.z)));
+      expect(nearestDist).toBeLessThan(3);
+    }
+  });
+
+  it('never spawns past the population cap', () => {
+    const tuning = { ...DEFAULT_TUNING, capRabbits: 30, capPredators: 2 };
+    const sim = createSim(1, tuning); // 26 rabbits, 4 predators at creation (predatorStart isn't cap-checked)
+    const rabbitsSpawned = spawnRabbits(sim, 20);
+    expect(sim.rabbits.length).toBeLessThanOrEqual(30);
+    expect(rabbitsSpawned).toBe(sim.rabbits.length - 26);
+
+    const predatorsBefore = sim.predators.length; // already >= capPredators from creation-time predatorStart
+    const predatorsSpawned = spawnPredators(sim, 20);
+    expect(predatorsSpawned).toBe(0);
+    expect(sim.predators.length).toBe(predatorsBefore);
   });
 });
 

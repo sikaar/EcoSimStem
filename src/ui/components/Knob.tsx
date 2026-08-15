@@ -13,6 +13,13 @@ export interface KnobProps {
    * per-knob tooltips (its TAB_DEF `tip` strings). Optional since the
    * predator/shared knobs predate this and don't all have one yet. */
   tip?: string | undefined;
+  /** Small pill next to the value, e.g. "−12 EP" — Game Mode's live cost
+   * preview while dragging. Null/undefined renders nothing. */
+  badge?: string | null | undefined;
+  /** Game Mode's EP cost couldn't be afforded — dims the knob and disables
+   * the input, distinct from a section-locked knob (which doesn't render
+   * at all, per TuningPanel's locked-section message). */
+  disabled?: boolean | undefined;
 }
 
 const wrapStyle: CSSProperties = { marginBottom: 8, position: 'relative' };
@@ -46,16 +53,26 @@ const tooltipStyle: CSSProperties = {
   pointerEvents: 'none',
 };
 
+const badgeStyle: CSSProperties = {
+  fontFamily: 'var(--mono)',
+  fontSize: 9,
+  color: 'var(--gold)',
+  background: 'rgba(240,192,90,.15)',
+  border: '1px solid rgba(240,192,90,.4)',
+  borderRadius: 3,
+  padding: '1px 5px',
+};
+
 /** Labeled range input — the tuning panel's atom (§3, `ui/components/Knob`).
  * CSS `:hover` isn't available on inline style objects, and this codebase
  * has no stylesheet beyond the global reset, so the tooltip's visibility
  * is plain hover/focus state instead of a CSS pseudo-class. */
-export function Knob({ label, value, min, max, step, onChange, format, tip }: KnobProps) {
+export function Knob({ label, value, min, max, step, onChange, format, tip, badge, disabled }: KnobProps) {
   const [showTip, setShowTip] = useState(false);
 
   return (
     <div
-      style={wrapStyle}
+      style={{ ...wrapStyle, opacity: disabled ? 0.5 : 1 }}
       onMouseEnter={() => setShowTip(true)}
       onMouseLeave={() => setShowTip(false)}
       onFocus={() => setShowTip(true)}
@@ -64,7 +81,10 @@ export function Knob({ label, value, min, max, step, onChange, format, tip }: Kn
       {tip && showTip && <div style={tooltipStyle}>{tip}</div>}
       <div style={labelRowStyle}>
         <span>{label}</span>
-        <i style={{ color: 'var(--text)', fontStyle: 'normal' }}>{format ? format(value) : value}</i>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {badge && <i style={badgeStyle}>{badge}</i>}
+          <i style={{ color: 'var(--text)', fontStyle: 'normal' }}>{format ? format(value) : value}</i>
+        </span>
       </div>
       <input
         type="range"
@@ -72,6 +92,7 @@ export function Knob({ label, value, min, max, step, onChange, format, tip }: Kn
         max={max}
         step={step}
         value={value}
+        disabled={disabled}
         onChange={(e) => onChange(Number(e.target.value))}
         style={sliderStyle}
       />

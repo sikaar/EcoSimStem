@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { useIsMobile } from '../hooks/useMediaQuery';
 import { Genes } from './Genes';
 import { TraitCloud } from './TraitCloud';
+import { ObjectivesPanel } from './ObjectivesPanel';
 
 /**
  * Genes and TraitCloud are two independently-positioned top-right panels
@@ -69,6 +70,7 @@ export function StatsDrawer() {
       </button>
       <Genes inline />
       <TraitCloud inline />
+      <ObjectivesPanel inline />
     </div>
   );
 }
