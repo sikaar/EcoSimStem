@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { DEFAULT_TUNING } from '../../config/tuning';
 import { useSimStore } from '../../store/simStore';
+import { useIsMobile } from '../hooks/useMediaQuery';
 
 /**
  * Persistent day/phase readout with a daylight-remaining bar (§10.2) — the
@@ -26,6 +27,14 @@ const wrapStyle: CSSProperties = {
   textAlign: 'center',
 };
 
+const mobileWrapStyle: CSSProperties = {
+  ...wrapStyle,
+  top: 8,
+  fontSize: 9,
+  padding: '5px 10px',
+  minWidth: 100,
+};
+
 function daylightRemainingFraction(phase: string, phaseElapsed: number): number {
   const totalWindow = DEFAULT_TUNING.dayLengthSec + DEFAULT_TUNING.duskLengthSec;
   let elapsedInWindow: number;
@@ -38,11 +47,12 @@ function daylightRemainingFraction(phase: string, phaseElapsed: number): number 
 
 export function DayPhaseIndicator() {
   const { day, phase, phaseElapsed } = useSimStore();
+  const isMobile = useIsMobile();
   const remaining = daylightRemainingFraction(phase, phaseElapsed);
   const barColor = phase === 'dusk' ? 'var(--gold)' : 'var(--teal)';
 
   return (
-    <div style={wrapStyle}>
+    <div style={isMobile ? mobileWrapStyle : wrapStyle}>
       <div>
         DAY {day} · {phase.toUpperCase()}
       </div>

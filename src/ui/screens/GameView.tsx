@@ -10,8 +10,7 @@ import { createCreatureLayers } from '../../render/creatureView';
 import { useSimStore, type SimSnapshot } from '../../store/simStore';
 import { saveRun } from '../../store/persistence';
 import { Census } from '../panels/Census';
-import { Genes } from '../panels/Genes';
-import { TraitCloud } from '../panels/TraitCloud';
+import { StatsDrawer } from '../panels/StatsDrawer';
 import { DayPhaseIndicator } from '../components/DayPhaseIndicator';
 import { PlayBar } from '../controls/PlayBar';
 import { TuningPanel } from '../controls/TuningPanel';
@@ -181,8 +180,7 @@ export function GameView({ seed, resumeDay }: GameViewProps) {
       <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none' }} />
       <DayPhaseIndicator />
       <Census />
-      <Genes />
-      <TraitCloud />
+      <StatsDrawer />
       <PlayBar />
       <TuningPanel />
       <DayReport />

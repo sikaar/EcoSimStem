@@ -34,7 +34,7 @@ const cardStyle: CSSProperties = {
   border: '1px solid var(--line2)',
   borderRadius: 8,
   padding: '32px 40px',
-  minWidth: 320,
+  width: 'min(360px, 92vw)',
   textAlign: 'center',
 };
 

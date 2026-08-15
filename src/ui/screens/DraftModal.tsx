@@ -33,7 +33,7 @@ export function DraftModal() {
           border: '1px solid var(--line2)',
           borderRadius: 6,
           padding: '24px 32px',
-          minWidth: 320,
+          width: 'min(320px, 92vw)',
           textAlign: 'center',
           cursor: 'default',
         }}
