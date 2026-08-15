@@ -83,9 +83,9 @@ export function GameView({ seed, resumeDay }: GameViewProps) {
     }
     simRef.current = sim;
 
-    const { scene, camera, renderer, resize, dispose: disposeScene } = createScene(canvas, sim.world);
+    const { scene, camera, renderer, ground, resize, dispose: disposeScene } = createScene(canvas, sim.world);
     const controls = createOrbitControls(camera, canvas);
-    const creatures = createCreatureLayers(scene);
+    const creatures = createCreatureLayers(scene, ground);
 
     // Shown briefly at resolve (§8.2) — showDayReport also sets `paused`,
     // which the step callback below already honors, so the sim genuinely

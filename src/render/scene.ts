@@ -5,6 +5,10 @@ export interface SceneHandles {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
+  /** The flat ground plane — exposed so creatureView.ts can raycast it for
+   * Polyfork's walk.mjs gait IK (§11.2's animated models need something to
+   * plant feet on). */
+  ground: THREE.Mesh;
   resize: () => void;
   dispose: () => void;
 }
@@ -75,5 +79,5 @@ export function createScene(canvas: HTMLCanvasElement, world: World): SceneHandl
     renderer.dispose();
   }
 
-  return { scene, camera, renderer, resize, dispose };
+  return { scene, camera, renderer, ground, resize, dispose };
 }
