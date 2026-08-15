@@ -1,5 +1,6 @@
 import { DEFAULT_TUNING } from '../config/tuning';
 import type { Tuning } from '../engine/types';
+import type { GameMode } from './gameStore';
 
 /**
  * localStorage persistence (§12). Schema-versioned so a future shape
@@ -25,6 +26,13 @@ export interface SaveV1 {
   day: number;
   tuningDelta: Partial<Tuning>;
   savedAt: number;
+  /** Optional so saves written before Game Mode existed still load —
+   * loadSave defaults it to 'free' when absent. Resuming does NOT restore
+   * EP/level/objective progress (that state was never persisted; see
+   * GameView's doc comment on resetForNewRun) — this field only keeps a
+   * resumed Game Mode run's knobs correctly locked instead of silently
+   * becoming a fully-unlocked Free Mode run. */
+  mode?: GameMode;
 }
 
 const SAVE_KEY = 'ecosystem_save_v1';
@@ -39,13 +47,14 @@ function diffFromDefaults(tuning: Tuning): Partial<Tuning> {
   return delta;
 }
 
-export function saveRun(seed: number, tuning: Tuning, day: number): void {
+export function saveRun(seed: number, tuning: Tuning, day: number, mode: GameMode): void {
   const save: SaveV1 = {
     version: 1,
     seed,
     day,
     tuningDelta: diffFromDefaults(tuning),
     savedAt: Date.now(),
+    mode,
   };
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify(save));
@@ -64,7 +73,8 @@ function isValidSave(value: unknown): value is SaveV1 {
     typeof v['day'] === 'number' &&
     typeof v['savedAt'] === 'number' &&
     typeof v['tuningDelta'] === 'object' &&
-    v['tuningDelta'] !== null
+    v['tuningDelta'] !== null &&
+    (v['mode'] === undefined || v['mode'] === 'free' || v['mode'] === 'game')
   );
 }
 

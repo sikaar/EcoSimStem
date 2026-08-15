@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { clearSave, loadSave, type SaveV1 } from '../../store/persistence';
+import type { GameMode } from '../../store/gameStore';
 import { AboutScreen } from './AboutScreen';
 
 /**
@@ -9,7 +10,7 @@ import { AboutScreen } from './AboutScreen';
  * route back to the start screen. This offers resume — it never hijacks.
  */
 export interface StartMenuProps {
-  onNewRun: () => void;
+  onNewRun: (mode: GameMode) => void;
   onResume: (save: SaveV1) => void;
 }
 
@@ -36,9 +37,37 @@ const cardStyle: CSSProperties = {
   border: '1px solid var(--line2)',
   borderRadius: 8,
   padding: '32px 40px',
-  width: 'min(360px, 92vw)',
+  width: 'min(460px, 92vw)',
   textAlign: 'center',
 };
+
+const modeGridStyle: CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: '1fr 1fr',
+  gap: 10,
+  textAlign: 'left',
+};
+
+const modeCardStyle: CSSProperties = {
+  border: '1px solid var(--line)',
+  borderRadius: 6,
+  padding: 16,
+  cursor: 'pointer',
+  background: 'transparent',
+  textAlign: 'left',
+  fontFamily: 'var(--sans)',
+};
+
+const modeBadgeStyle = (color: string): CSSProperties => ({
+  display: 'inline-block',
+  fontFamily: 'var(--mono)',
+  fontSize: 8.5,
+  letterSpacing: '0.12em',
+  padding: '2px 6px',
+  border: `1px solid ${color}`,
+  color,
+  marginBottom: 8,
+});
 
 const titleStyle: CSSProperties = { fontSize: 22, letterSpacing: '0.1em', margin: 0, color: 'var(--text)' };
 const subtitleStyle: CSSProperties = { fontSize: 12, color: 'var(--dim)', marginTop: 8, marginBottom: 24 };
@@ -109,9 +138,23 @@ export function StartMenu({ onNewRun, onResume }: StartMenuProps) {
           </div>
         )}
 
-        <button style={save ? ghostButtonStyle : primaryButtonStyle} onClick={onNewRun}>
-          NEW RUN
-        </button>
+        <div style={modeGridStyle}>
+          <button style={modeCardStyle} onClick={() => onNewRun('free')}>
+            <span style={modeBadgeStyle('var(--teal)')}>FREE</span>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--text)' }}>Free Mode</div>
+            <div style={{ fontSize: 11.5, color: 'var(--dim)', lineHeight: 1.5 }}>
+              All parameters unlocked from the start. No objectives, no costs. Pure observation and experimentation.
+            </div>
+          </button>
+          <button style={modeCardStyle} onClick={() => onNewRun('game')}>
+            <span style={modeBadgeStyle('var(--gold)')}>GAME</span>
+            <div style={{ fontSize: 14, fontWeight: 500, marginBottom: 6, color: 'var(--text)' }}>Game Mode</div>
+            <div style={{ fontSize: 11.5, color: 'var(--dim)', lineHeight: 1.5 }}>
+              Start with only environmental controls. Complete objectives to unlock parameters. Adjustments cost Evo
+              Points.
+            </div>
+          </button>
+        </div>
 
         <button
           onClick={() => setAboutOpen(true)}

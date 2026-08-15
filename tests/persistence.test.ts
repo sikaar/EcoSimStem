@@ -36,7 +36,7 @@ describe('persistence (§12)', () => {
   });
 
   it('round-trips seed, day, and savedAt', () => {
-    saveRun(12345, DEFAULT_TUNING, 7);
+    saveRun(12345, DEFAULT_TUNING, 7, 'free');
     const save = loadSave();
     expect(save).not.toBeNull();
     expect(save!.version).toBe(1);
@@ -46,29 +46,41 @@ describe('persistence (§12)', () => {
   });
 
   it('stores only the tuning delta from defaults, not the full tuning object', () => {
-    saveRun(1, DEFAULT_TUNING, 1);
+    saveRun(1, DEFAULT_TUNING, 1, 'free');
     const unchanged = loadSave();
     expect(unchanged!.tuningDelta).toEqual({});
 
     const modified = { ...DEFAULT_TUNING, predatorSpeed: 4.2, energyMax: 350 };
-    saveRun(1, modified, 3);
+    saveRun(1, modified, 3, 'free');
     const changed = loadSave();
     expect(changed!.tuningDelta).toEqual({ predatorSpeed: 4.2, energyMax: 350 });
   });
 
   it('clearSave removes the entry', () => {
-    saveRun(1, DEFAULT_TUNING, 1);
+    saveRun(1, DEFAULT_TUNING, 1, 'free');
     expect(loadSave()).not.toBeNull();
     clearSave();
     expect(loadSave()).toBeNull();
   });
 
   it('a later save overwrites an earlier one', () => {
-    saveRun(1, DEFAULT_TUNING, 1);
-    saveRun(2, DEFAULT_TUNING, 5);
+    saveRun(1, DEFAULT_TUNING, 1, 'free');
+    saveRun(2, DEFAULT_TUNING, 5, 'free');
     const save = loadSave();
     expect(save!.seed).toBe(2);
     expect(save!.day).toBe(5);
+  });
+
+  it('round-trips the game mode', () => {
+    saveRun(1, DEFAULT_TUNING, 1, 'game');
+    expect(loadSave()!.mode).toBe('game');
+  });
+
+  it('accepts a save written before Game Mode existed (mode absent)', () => {
+    localStorage.setItem('ecosystem_save_v1', JSON.stringify({ version: 1, seed: 1, day: 1, tuningDelta: {}, savedAt: 1 }));
+    const save = loadSave();
+    expect(save).not.toBeNull();
+    expect(save!.mode).toBeUndefined();
   });
 
   it('rejects malformed data instead of returning it as-is', () => {

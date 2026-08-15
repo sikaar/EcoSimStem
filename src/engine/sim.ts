@@ -101,6 +101,40 @@ export function createSim(seed: number, tuning: Tuning): SimState {
 
 const FOUNDER_DEN_SCATTER = 2; // metres — keeps founders inside denRadius-ish of home
 
+/** Injects up to `count` mature rabbits into an already-running sim, at
+ * rabbit dens, respecting capRabbits — the "+RABBITS" Game Mode action
+ * (§ ported from V1's addRab button). Returns how many actually spawned,
+ * which can be fewer than requested once the cap is close. New founders
+ * join at the current deepest generation rather than generation 1, so they
+ * don't skew the genes panel's generation tracking backward. */
+export function spawnRabbits(sim: SimState, count: number): number {
+  const dens = sim.world.dens.filter((d) => d.species === 'rabbit');
+  let spawned = 0;
+  for (let i = 0; i < count && sim.rabbits.length < sim.tuning.capRabbits; i++) {
+    const p = spawnNearDen(sim, dens);
+    sim.rabbits.push(
+      makeRabbit({ id: nextId(sim), x: p.x, z: p.z, generation: sim.maxGeneration, mature: true, rng: sim.rng, tuning: sim.tuning }),
+    );
+    spawned++;
+  }
+  return spawned;
+}
+
+/** Injects up to `count` predators into an already-running sim, at
+ * predator dens, respecting capPredators — the "RELEASE PREDATORS" Game
+ * Mode action (§ ported from V1's addFox button, which is how V1 always
+ * introduced predators: never present from day 1, only on request). */
+export function spawnPredators(sim: SimState, count: number): number {
+  const dens = sim.world.dens.filter((d) => d.species === 'predator');
+  let spawned = 0;
+  for (let i = 0; i < count && sim.predators.length < sim.tuning.capPredators; i++) {
+    const p = spawnNearDen(sim, dens);
+    sim.predators.push(makePredator({ id: nextId(sim), x: p.x, z: p.z, rng: sim.rng, tuning: sim.tuning }));
+    spawned++;
+  }
+  return spawned;
+}
+
 function spawnNearDen(sim: SimState, dens: readonly Point[]): Point {
   if (dens.length === 0) return { x: 0, z: 0 };
   const den = sim.rng.pick(dens);

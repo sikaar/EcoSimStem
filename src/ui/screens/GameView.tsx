@@ -9,12 +9,16 @@ import { createOrbitControls } from '../../render/orbit';
 import { createCreatureLayers } from '../../render/creatureView';
 import { createSenseRings } from '../../render/senseRings';
 import { useSimStore, type SimSnapshot } from '../../store/simStore';
+import { useGameStore, type GameMode } from '../../store/gameStore';
+import { buildObjectiveContext } from '../../store/objectiveContext';
 import { saveRun } from '../../store/persistence';
 import { Census } from '../panels/Census';
 import { StatsDrawer } from '../panels/StatsDrawer';
+import { ObjectivesPanel } from '../panels/ObjectivesPanel';
 import { DayPhaseIndicator } from '../components/DayPhaseIndicator';
 import { PlayBar } from '../controls/PlayBar';
 import { TuningPanel } from '../controls/TuningPanel';
+import { useIsMobile } from '../hooks/useMediaQuery';
 import { DayReport } from './DayReport';
 import { DraftModal } from './DraftModal';
 import { ExtinctionScreen } from './ExtinctionScreen';
@@ -23,6 +27,7 @@ const SNAPSHOT_INTERVAL_MS = 250; // ~4Hz per §4.1 — never per-step
 
 export interface GameViewProps {
   seed: number;
+  mode: GameMode;
   /** If set (and > 1), the initial mount replays deterministically up to
    * this day via runUntilDay instead of starting fresh at day 1 — the
    * resume path (§12). Only honored on the very first mount; the tuning
@@ -47,9 +52,10 @@ function computeSnapshot(sim: SimState): SimSnapshot {
   };
 }
 
-export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
+export function GameView({ seed, mode, resumeDay, onMainMenu }: GameViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const restartSignal = useSimStore((s) => s.restartSignal);
+  const isMobile = useIsMobile();
   // Captured once at first render and never reassigned. A mutable ref that
   // instead flips to `false` *inside* the effect breaks under React 18
   // StrictMode's dev-only mount→cleanup→mount double-invoke: the first
@@ -84,6 +90,14 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
     const useResume = !isRestart && resumeDay !== undefined && resumeDay > 1;
     const runSeed = isRestart ? Math.floor(Math.random() * 1e9) : seed;
 
+    // Game Mode: EP/level/objective progress only resets on a genuinely
+    // fresh run (Restart preserves it, same as V1's resetSim() leaving
+    // level/ep untouched — only the population resets). A resumed run
+    // doesn't restore Game Mode progress either (§ see the doc comment on
+    // resetForNewRun) — it's a page-reload scenario Game Mode's EP/level
+    // state was never persisted through in the first place.
+    if (!isRestart) useGameStore.getState().resetForNewRun(mode);
+
     const sim = createSim(runSeed, liveTuning);
     if (useResume) {
       // Deterministic replay (§12): createSim + runUntilDay reproduces the
@@ -93,6 +107,15 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
       // counts a balance-limited run actually reaches, but a save from a
       // very long run would show a brief hitch here rather than a spinner.
       runUntilDay(sim, resumeDay, 1 / 60);
+    } else if (mode === 'game') {
+      // Game Mode never starts with predators present — they only ever
+      // arrive via ObjectivesPanel's RELEASE PREDATORS action (ported from
+      // V1, where foxes were always released on request, never spawned at
+      // creation). Applies to both a genuinely fresh run and a Restart —
+      // V1's resetSim() zeroed foxEverReleased unconditionally on every
+      // reset, not just the initial start. Skipped on resume: replaying a
+      // save doesn't know whether/when the player had clicked release.
+      sim.predators.length = 0;
     }
     simRef.current = sim;
 
@@ -129,7 +152,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
         // Autosave at day boundaries (§12), not on a timer.
         if (sim.day.phase === 'dawn' && sim.day.day !== lastSavedDay) {
           lastSavedDay = sim.day.day;
-          saveRun(runSeed, liveTuning, sim.day.day);
+          saveRun(runSeed, liveTuning, sim.day.day, mode);
         }
 
         // Extinction can only happen via a death (there's no other way for
@@ -157,6 +180,26 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
           // panel's sparklines have no gaps — separate from *showing* the
           // report, which §8.2 skips on draft days (see below).
           useSimStore.getState().recordDayReport(sim.lastDayReport);
+
+          if (mode === 'game') {
+            const gameState = useGameStore.getState();
+            if (sim.lastDayReport.day === 1) gameState.captureFounderSpeed(sim.lastDayReport.meanSpeed);
+            const simState = useSimStore.getState();
+            gameState.tickDay(
+              buildObjectiveContext({
+                day: sim.lastDayReport.day,
+                rabbitCount: sim.rabbits.length,
+                predatorCount: sim.predators.length,
+                maxGeneration: sim.maxGeneration,
+                meanSense: sim.lastDayReport.meanSense,
+                runTally: simState.runTally,
+                geneHistory: simState.geneHistory,
+                tuning: liveTuning,
+                predatorEverReleased: gameState.predatorEverReleased,
+                founderMeanSpeed: gameState.founderMeanSpeed,
+              }),
+            );
+          }
 
           // §8.2: "auto-skipped when a draft follows" — a draft-interval
           // day would otherwise show the report AND the draft placeholder
@@ -186,7 +229,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
     resizeObserver.observe(canvas);
 
     // Autosave on tab blur too (§12), same day-boundary-granularity save.
-    const onBlur = () => saveRun(runSeed, liveTuning, sim.day.day);
+    const onBlur = () => saveRun(runSeed, liveTuning, sim.day.day, mode);
     window.addEventListener('blur', onBlur);
 
     return () => {
@@ -200,7 +243,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
       disposeScene();
       if (simRef.current === sim) simRef.current = null;
     };
-  }, [restartSignal, seed, resumeDay]);
+  }, [restartSignal, seed, resumeDay, mode]);
 
   return (
     <main style={{ position: 'relative', height: '100%' }}>
@@ -208,6 +251,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
       <DayPhaseIndicator />
       <Census />
       <StatsDrawer />
+      {!isMobile && <ObjectivesPanel />}
       <PlayBar />
       <TuningPanel />
       <DayReport />
