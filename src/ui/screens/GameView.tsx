@@ -7,6 +7,7 @@ import { createFixedTimestepLoop } from '../../engine/loop';
 import { createScene } from '../../render/scene';
 import { createOrbitControls } from '../../render/orbit';
 import { createCreatureLayers } from '../../render/creatureView';
+import { createSenseRings } from '../../render/senseRings';
 import { useSimStore, type SimSnapshot } from '../../store/simStore';
 import { saveRun } from '../../store/persistence';
 import { Census } from '../panels/Census';
@@ -98,6 +99,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
     const { scene, camera, renderer, ground, resize, dispose: disposeScene } = createScene(canvas, sim.world);
     const controls = createOrbitControls(camera, canvas);
     const creatures = createCreatureLayers(scene, ground);
+    const senseRings = createSenseRings(scene);
 
     // Shown briefly at resolve (§8.2) — showDayReport also sets `paused`,
     // which the step callback below already honors, so the sim genuinely
@@ -145,6 +147,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
         creatures.rabbits.sync(sim.rabbits);
         creatures.predators.sync(sim.predators);
         creatures.plants.sync(sim.plants.filter((p) => p.alive));
+        senseRings.update(sim.rabbits, useSimStore.getState().showSenseRings);
         controls.update();
         renderer.render(scene, camera);
 
@@ -193,6 +196,7 @@ export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
       window.removeEventListener('blur', onBlur);
       controls.dispose();
       creatures.dispose();
+      senseRings.dispose();
       disposeScene();
       if (simRef.current === sim) simRef.current = null;
     };

@@ -53,6 +53,12 @@ export const GENE_HISTORY_LIMIT = 60;
 interface SimStoreState extends SimSnapshot {
   paused: boolean;
   speedMultiplier: number;
+  /** Sense-radius ring overlay (render/senseRings.ts) — an observation aid,
+   * off by default since dozens of overlapping circles is noise most of
+   * the time, not a run-state concern, so it isn't reset by
+   * requestRestart/resetRunState the way dayReport etc. are. */
+  showSenseRings: boolean;
+  toggleSenseRings: () => void;
   /** Currently displayed day report, or null when none is showing. */
   dayReport: DayReport | null;
   /** The last report that was dismissed — the baseline for the "▲/▼ vs
@@ -140,6 +146,8 @@ export const useSimStore = create<SimStoreState>((set) => ({
   maxGeneration: 1,
   paused: false,
   speedMultiplier: 1,
+  showSenseRings: false,
+  toggleSenseRings: () => set((state) => ({ showSenseRings: !state.showSenseRings })),
   dayReport: null,
   previousDayReport: null,
   setSnapshot: (snapshot) =>
