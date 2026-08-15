@@ -16,6 +16,7 @@ import { PlayBar } from '../controls/PlayBar';
 import { TuningPanel } from '../controls/TuningPanel';
 import { DayReport } from './DayReport';
 import { DraftModal } from './DraftModal';
+import { ExtinctionScreen } from './ExtinctionScreen';
 
 const SNAPSHOT_INTERVAL_MS = 250; // ~4Hz per §4.1 — never per-step
 
@@ -26,6 +27,9 @@ export interface GameViewProps {
    * resume path (§12). Only honored on the very first mount; the tuning
    * panel's Restart button always starts a genuinely fresh run. */
   resumeDay?: number | undefined;
+  /** Extinction screen's MAIN MENU button — bubbles back up to App.tsx,
+   * which is the only place holding the start/playing screen state. */
+  onMainMenu: () => void;
 }
 
 function computeSnapshot(sim: SimState): SimSnapshot {
@@ -38,10 +42,11 @@ function computeSnapshot(sim: SimState): SimSnapshot {
     predatorCount: sim.predators.length,
     plantCount: sim.plants.filter((p) => p.alive).length,
     meanSense: sim.rabbits.length ? senseSum / sim.rabbits.length : 0,
+    maxGeneration: sim.maxGeneration,
   };
 }
 
-export function GameView({ seed, resumeDay }: GameViewProps) {
+export function GameView({ seed, resumeDay, onMainMenu }: GameViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const restartSignal = useSimStore((s) => s.restartSignal);
   // Captured once at first render and never reassigned. A mutable ref that
@@ -58,6 +63,13 @@ export function GameView({ seed, resumeDay }: GameViewProps) {
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    // Wipes dayReport/geneHistory/runTally/extinctionShown etc. Needed here
+    // (not just in requestRestart) because a fresh mount — Main Menu → New
+    // Run — has no other path back to clean state: the zustand store is a
+    // module-level singleton, so it doesn't reset itself just because a new
+    // GameView instance mounted.
+    useSimStore.getState().resetRunState();
 
     // liveTuning is read by reference, not copied — most debug-panel edits
     // land on the very next tick. Fields only read inside createSim
@@ -116,6 +128,17 @@ export function GameView({ seed, resumeDay }: GameViewProps) {
         if (sim.day.phase === 'dawn' && sim.day.day !== lastSavedDay) {
           lastSavedDay = sim.day.day;
           saveRun(runSeed, liveTuning, sim.day.day);
+        }
+
+        // Extinction can only happen via a death (there's no other way for
+        // the arrays to empty), so the merged tally is guaranteed non-empty
+        // by the time this fires — the screen never needs a "nothing had
+        // time to happen" fallback. sim.deathTally/bornToday are passed in
+        // live because a wipeout can land mid-day, before that day's
+        // resolve has reported anything to runTally yet (see showExtinction's
+        // doc comment).
+        if (!store.extinctionShown && sim.rabbits.length === 0 && sim.predators.length === 0) {
+          store.showExtinction(sim.deathTally, sim.bornToday);
         }
       },
       render: () => {
@@ -185,6 +208,7 @@ export function GameView({ seed, resumeDay }: GameViewProps) {
       <TuningPanel />
       <DayReport />
       <DraftModal />
+      <ExtinctionScreen onMainMenu={onMainMenu} />
     </main>
   );
 }

@@ -24,5 +24,5 @@ export function App() {
     );
   }
 
-  return <GameView seed={screen.seed} resumeDay={screen.resumeDay} />;
+  return <GameView seed={screen.seed} resumeDay={screen.resumeDay} onMainMenu={() => setScreen({ kind: 'start' })} />;
 }

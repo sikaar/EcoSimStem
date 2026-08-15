@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { DayPhase } from '../engine/day';
-import type { DayReport } from '../engine/systems/lifecycle';
+import { emptyDeathTally, type DayReport, type DeathCause } from '../engine/systems/lifecycle';
 
 /**
  * UI reads aggregates from here — never per-step, never the live entity
@@ -16,6 +16,24 @@ export interface SimSnapshot {
   predatorCount: number;
   plantCount: number;
   meanSense: number;
+  /** Deepest generation reached so far — surfaced for the extinction
+   * screen's "generations reached" tally. */
+  maxGeneration: number;
+}
+
+/** Lifetime totals across the whole run, not per-day — accumulated as each
+ * day report lands, read by the extinction screen when both populations
+ * hit zero. Separate from geneHistory (which already covers founder→final
+ * gene drift on its own) because death causes and births don't have a
+ * "trend line" — they only need a sum. */
+export interface RunTally {
+  totalBorn: number;
+  totalDeaths: Record<DeathCause, number>;
+  peakRabbits: number;
+}
+
+function emptyRunTally(): RunTally {
+  return { totalBorn: 0, totalDeaths: emptyDeathTally(), peakRabbits: 0 };
 }
 
 /** One point per day for the genes panel's sparklines (§9.2) — recorded
@@ -67,6 +85,48 @@ interface SimStoreState extends SimSnapshot {
   draftDismissRequested: boolean;
   showDraftPending: () => void;
   requestDraftDismiss: () => void;
+  runTally: RunTally;
+  /** True once both populations have hit zero and the extinction screen has
+   * been shown for this run — a dedicated flag rather than deriving
+   * "extinct" from rabbitCount/predatorCount on every render, since the
+   * screen should show exactly once per run, not re-fire on every frame
+   * the (permanently empty) counts are re-read. */
+  extinctionShown: boolean;
+  /** Called once, from the step loop, the frame both populations reach
+   * zero. Also pauses the sim — nothing left to simulate, and freezing the
+   * "DAY N" clock at the moment of extinction reads better than letting it
+   * silently keep ticking behind the modal.
+   *
+   * Takes the engine's current (not-yet-reported) death tally and born
+   * count as arguments rather than reading them off runTally alone: a
+   * population can hit zero mid-day, before that day's `resolve` has ever
+   * built a report, in which case runTally hasn't accumulated today's
+   * deaths yet (recordDayReport only fires at resolve). Merging the live,
+   * in-progress sim.deathTally in at the moment of extinction avoids a
+   * screen that shows fewer deaths than a population that's provably 100%
+   * dead must have had. */
+  showExtinction: (finalDayDeaths: Record<DeathCause, number>, finalDayBorn: number) => void;
+  /** Shared by requestRestart (same GameView instance, tuning-panel
+   * Restart) and GameView's mount effect (a fresh instance after Main
+   * Menu → New Run) — both need the same "wipe transient run state"
+   * behavior; only requestRestart also needs to bump restartSignal to
+   * force GameView's setup effect to re-run. */
+  resetRunState: () => void;
+}
+
+/** The fields a fresh run starts with — shared between requestRestart and
+ * resetRunState so the two "start clean" paths can't drift apart. */
+function freshRunState() {
+  return {
+    dayReport: null,
+    previousDayReport: null,
+    paused: false,
+    draftPending: false,
+    draftDismissRequested: false,
+    geneHistory: [],
+    runTally: emptyRunTally(),
+    extinctionShown: false,
+  };
 }
 
 export const useSimStore = create<SimStoreState>((set) => ({
@@ -77,11 +137,13 @@ export const useSimStore = create<SimStoreState>((set) => ({
   predatorCount: 0,
   plantCount: 0,
   meanSense: 0,
+  maxGeneration: 1,
   paused: false,
   speedMultiplier: 1,
   dayReport: null,
   previousDayReport: null,
-  setSnapshot: (snapshot) => set(snapshot),
+  setSnapshot: (snapshot) =>
+    set((state) => ({ ...snapshot, runTally: { ...state.runTally, peakRabbits: Math.max(state.runTally.peakRabbits, snapshot.rabbitCount) } })),
   togglePaused: () => set((state) => ({ paused: !state.paused })),
   setSpeedMultiplier: (multiplier) => set({ speedMultiplier: multiplier }),
   showDayReport: (report) => set({ dayReport: report, paused: true }),
@@ -98,20 +160,43 @@ export const useSimStore = create<SimStoreState>((set) => ({
         ...state.geneHistory,
         { day: report.day, sense: report.meanSense, speed: report.meanSpeed, urge: report.meanUrge, gest: report.meanGest, des: report.meanDes },
       ].slice(-GENE_HISTORY_LIMIT),
+      runTally: {
+        ...state.runTally,
+        totalBorn: state.runTally.totalBorn + report.born,
+        totalDeaths: {
+          exposure: state.runTally.totalDeaths.exposure + report.deaths.exposure,
+          collapse: state.runTally.totalDeaths.collapse + report.deaths.collapse,
+          starvation: state.runTally.totalDeaths.starvation + report.deaths.starvation,
+          dehydration: state.runTally.totalDeaths.dehydration + report.deaths.dehydration,
+          age: state.runTally.totalDeaths.age + report.deaths.age,
+          predation: state.runTally.totalDeaths.predation + report.deaths.predation,
+        },
+      },
     })),
   restartSignal: 0,
-  requestRestart: () =>
-    set((state) => ({
-      restartSignal: state.restartSignal + 1,
-      dayReport: null,
-      previousDayReport: null,
-      paused: false,
-      draftPending: false,
-      draftDismissRequested: false,
-      geneHistory: [],
-    })),
+  requestRestart: () => set((state) => ({ restartSignal: state.restartSignal + 1, ...freshRunState() })),
   draftPending: false,
   draftDismissRequested: false,
   showDraftPending: () => set({ draftPending: true }),
   requestDraftDismiss: () => set({ draftPending: false, draftDismissRequested: true }),
+  runTally: emptyRunTally(),
+  extinctionShown: false,
+  showExtinction: (finalDayDeaths, finalDayBorn) =>
+    set((state) => ({
+      extinctionShown: true,
+      paused: true,
+      runTally: {
+        ...state.runTally,
+        totalBorn: state.runTally.totalBorn + finalDayBorn,
+        totalDeaths: {
+          exposure: state.runTally.totalDeaths.exposure + finalDayDeaths.exposure,
+          collapse: state.runTally.totalDeaths.collapse + finalDayDeaths.collapse,
+          starvation: state.runTally.totalDeaths.starvation + finalDayDeaths.starvation,
+          dehydration: state.runTally.totalDeaths.dehydration + finalDayDeaths.dehydration,
+          age: state.runTally.totalDeaths.age + finalDayDeaths.age,
+          predation: state.runTally.totalDeaths.predation + finalDayDeaths.predation,
+        },
+      },
+    })),
+  resetRunState: () => set(freshRunState()),
 }));
