@@ -5,6 +5,12 @@ export interface Tuning {
   dayLengthSec: number;
   duskLengthSec: number;
   draftIntervalDays: number;
+  /** Multiplier on RETURN urgency, covering the gap between the
+   * straight-line distance home the urgency is computed from and the
+   * longer real path around lakes and obstacles (§6.2). Below the typical
+   * path-inefficiency factor, creatures turn for home too late and die of
+   * exposure at resolve. */
+  returnSafetyMargin: number;
 
   // ---- energy (per-day pool) ----
   energyMax: number;
@@ -12,6 +18,10 @@ export interface Tuning {
   senseCostK: number;
   idleCost: number;
   energyFromPlant: number;
+  /** Energy a predator recovers per kill — its counterpart to
+   * energyFromPlant. Predators have no other refill path, so this is what
+   * makes a hunting day survivable. */
+  energyFromKill: number;
   energyCarryover: number;
 
   // ---- condition (multi-day) ----
@@ -48,6 +58,16 @@ export interface Tuning {
   // ---- predators ----
   predatorSpeed: number;
   predatorSense: number;
+  /** Hunger a predator must reach before it will chase prey. Without a
+   * gate a satiated predator keeps hunting anything it can see, which
+   * crops the prey population far past what it needs and then starves it
+   * into a crash — the classic overshoot. */
+  predatorHuntThreshold: number;
+  /** Fraction of predatorSpeed used when patrolling or heading home rather
+   * than actively chasing prey. Sprinting is what the speed² term makes
+   * expensive (§5.2), so a predator that runs flat out all day cannot
+   * balance its energy budget no matter how well it hunts. */
+  predatorPatrolFactor: number;
   predatorGain: number;
   predatorBreedThreshold: number;
   predatorStart: number;

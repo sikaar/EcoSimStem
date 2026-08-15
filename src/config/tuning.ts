@@ -28,16 +28,48 @@ import type { Tuning } from '../engine/types';
  * over their literal values from the prototype's *seconds*-scale model
  * (female cooldown = gest+5 *days* instead of gest+1) without rescaling.
  *
- * Known open item: predators still die out by day 2 in a full run even
- * though rabbits now sustain a full 20 days around them (see sim.test.ts).
- * Predator-specific balance (predatorSpeed/predatorSense/predatorGain)
- * needs its own pass — flagged here rather than silently left broken.
+ * ---------------------------------------------------------------------
+ * Second pass, after a diagnostic run found the population collapsing to
+ * extinction by day 13 with zero predators and 50 plants untouched. That
+ * turned out to be three engine defects, not tuning — all fixed in the
+ * same change (drives.ts, movement.ts, predation.ts); see those files. The
+ * constants below were then re-derived by measured sweep against 5-7
+ * seeds over 20 days, not by guesswork:
+ *
+ * - returnSafetyMargin 1.15 -> 2.5 (new knob). Urgency is computed from
+ *   the straight-line distance home, but the real path detours around
+ *   five lakes. At 1.15 a rabbit 16m out turned for home with 1.2s of
+ *   slack in a 15s dusk and routinely died at resolve; exposure was the
+ *   single largest cause of death (218 across 5 seeds). At 2.5 it drops
+ *   to 70 and every seed survives.
+ * - duskLengthSec 15 -> 20, denRadius 1.5 -> 2.5. Both widen the same
+ *   arrival window; measured as secondary to the margin but additive.
+ * - energyFromKill 140 (new knob). A kill previously restored hunger but
+ *   not energy, so predators had no refill path at all and collapsed on
+ *   day 1 of every run, well fed, mid-hunt.
+ * - predatorHuntThreshold 0.15, predatorPatrolFactor 0.55 (new knobs).
+ *   Ported from prototype behaviour our first pass dropped: a predator
+ *   that hunts while full crops the prey population past what it needs,
+ *   and one that sprints while merely patrolling cannot balance its own
+ *   energy budget.
+ * - predatorSense 11 -> 7, predatorStart 4 -> 2, predatorDens 2 -> 4.
+ *   Sense is by far the strongest lever on prey survival (11: rabbits
+ *   wiped out in 3 of 5 seeds; 7: all 5 survive). More dens cut predator
+ *   exposure deaths, which dominated once their energy was fixed.
+ *
+ * Known open item: rabbits now sustain 20 days reliably, but predators
+ * still dwindle to zero over that span rather than reaching a stable
+ * coexistence. Their survival improved from "dead on day 1, always" to
+ * "several days", and prey-crash-then-starve is gone — but a true
+ * predator-prey equilibrium is not reached yet. Flagged here rather than
+ * silently left broken; balance.test.ts asserts the prey half only.
  */
 export const DEFAULT_TUNING: Tuning = {
   // ---- day cycle ----
   dayLengthSec: 75,
-  duskLengthSec: 15,
+  duskLengthSec: 20,
   draftIntervalDays: 2,
+  returnSafetyMargin: 2.5,
 
   // ---- energy (per-day pool) ----
   energyMax: 280,
@@ -45,6 +77,12 @@ export const DEFAULT_TUNING: Tuning = {
   senseCostK: 0.04,
   idleCost: 0.15,
   energyFromPlant: 90,
+  // A predator drains ~3.6/s at default speed/sense, so a 90s day costs
+  // ~320 against a 280 pool — it cannot survive on the pool alone and must
+  // hunt. At 140 a kill buys roughly 40s of pursuit, so ~2 kills/day is
+  // break-even: enough that competent hunting sustains a predator, not so
+  // much that one lucky catch coasts it through the day.
+  energyFromKill: 140,
   energyCarryover: 0.25,
 
   // ---- condition (multi-day) ----
@@ -63,8 +101,8 @@ export const DEFAULT_TUNING: Tuning = {
   plants: 50,
   regrowDays: 0.5,
   rabbitDens: 6,
-  predatorDens: 2,
-  denRadius: 1.5,
+  predatorDens: 4,
+  denRadius: 2.5,
   drinkRadius: 1.3,
   eatRadius: 0.6,
 
@@ -80,10 +118,17 @@ export const DEFAULT_TUNING: Tuning = {
 
   // ---- predators ----
   predatorSpeed: 3.0,
-  predatorSense: 11,
+  // Deliberately below the rabbit sense range (7-14): prey usually spots
+  // the hunter first, which is what makes the sense gene worth selecting
+  // for. Measured as by far the strongest lever on whether the prey
+  // population survives at all — at 11 the rabbits were wiped out in 3 of
+  // 5 seeds, at 7 they survived all 5.
+  predatorSense: 7,
+  predatorHuntThreshold: 0.15,
+  predatorPatrolFactor: 0.55,
   predatorGain: 0.62,
   predatorBreedThreshold: 0.22,
-  predatorStart: 4,
+  predatorStart: 2,
 
   // ---- caps ----
   capRabbits: 200,

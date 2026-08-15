@@ -129,6 +129,41 @@ describe('arbitrate — RETURN hard override', () => {
     });
     expect(result).toEqual({ action: 'commit', kind: 'water', target: { x: 2, z: 2 } });
   });
+
+  it('wanders — does NOT go home — when nothing is visible and returning is not urgent', () => {
+    // Regression guard. `return` used to sit in the ranked fallback list,
+    // and findTarget('return') is the one lookup that always succeeds, so
+    // it swallowed every fall-through and `wander` became unreachable.
+    // Rabbits with no visible water or food parked on their den until they
+    // starved, which collapsed the population on default tuning.
+    const result = arbitrate({
+      selfPos,
+      sense: 8,
+      thirst: 0.3,
+      hunger: 0.3,
+      canBreed: false,
+      urge: 0,
+      returnUrgency: 0,
+      nearestPredator: null,
+      findTarget: (kind) => (kind === 'return' ? { x: 0, z: 0 } : null),
+    });
+    expect(result).toEqual({ action: 'wander' });
+  });
+
+  it('still goes home over an available food target once returning is urgent', () => {
+    const result = arbitrate({
+      selfPos,
+      sense: 8,
+      thirst: 0.1,
+      hunger: 0.95,
+      canBreed: false,
+      urge: 0,
+      returnUrgency: 1.05,
+      nearestPredator: null,
+      findTarget: (kind) => (kind === 'return' ? { x: 0, z: -5 } : { x: 3, z: 3 }),
+    });
+    expect(result).toEqual({ action: 'commit', kind: 'return', target: { x: 0, z: -5 } });
+  });
 });
 
 describe('computeReturnUrgency (§6.2)', () => {
@@ -137,7 +172,7 @@ describe('computeReturnUrgency (§6.2)', () => {
   it('matches the formula exactly for a known case', () => {
     const energyNeeded = 10 * (DEFAULT_TUNING.moveCostK * 2);
     const timeNeeded = 10 / 2;
-    const expected = Math.max(energyNeeded / 50, timeNeeded / 20) * 1.15;
+    const expected = Math.max(energyNeeded / 50, timeNeeded / 20) * DEFAULT_TUNING.returnSafetyMargin;
     expect(computeReturnUrgency(base)).toBeCloseTo(expected, 10);
   });
 

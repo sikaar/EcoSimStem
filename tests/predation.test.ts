@@ -35,6 +35,22 @@ describe('huntRabbit', () => {
     const result = huntRabbit(p, { x: 0, z: 0 }, DEFAULT_TUNING);
     expect(result.predator.hunger).toBe(0);
   });
+
+  it('restores the energy pool on a kill, not just hunger', () => {
+    // Regression guard. A kill originally reduced hunger only, leaving
+    // predators with no way to refill energy at all — so they collapsed
+    // every run before day 1 ended, well fed and mid-hunt.
+    const p = predator({ energy: 50 });
+    const result = huntRabbit(p, { x: 0.1, z: 0 }, DEFAULT_TUNING);
+    expect(result.killed).toBe(true);
+    expect(result.predator.energy).toBeCloseTo(50 + DEFAULT_TUNING.energyFromKill);
+  });
+
+  it('does not let a kill push energy past the pool maximum', () => {
+    const p = predator({ energy: DEFAULT_TUNING.energyMax - 5 });
+    const result = huntRabbit(p, { x: 0.1, z: 0 }, DEFAULT_TUNING);
+    expect(result.predator.energy).toBe(DEFAULT_TUNING.energyMax);
+  });
 });
 
 describe('canPredatorBreed', () => {

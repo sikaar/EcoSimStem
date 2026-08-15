@@ -80,6 +80,40 @@ describe('step', () => {
   });
 });
 
+describe('no creature gets permanently stuck (§6.3)', () => {
+  it('no rabbit stays put for a whole forage phase', () => {
+    // Two separate defects produced permanently frozen creatures, and
+    // neither was visible to any unit test: `return` sitting in the drive
+    // fallback list made rabbits commit to a den they were already
+    // standing on, and wanderTarget only swept the half-circle ahead, so
+    // a creature facing a shoreline got its own position back as a target
+    // forever. Both showed up in play as rabbits stuck near their burrow.
+    const sim = createSim(12345, DEFAULT_TUNING);
+    const dt = 1 / 60;
+    const prev = new Map<number, { x: number; z: number }>();
+    const streak = new Map<number, number>();
+    let worstStreak = 0;
+
+    // ~10 days, sampling twice a second during the active phases.
+    for (let i = 0; i < 60 * 60 * 20 && sim.day.day <= 10; i++) {
+      step(sim, dt);
+      if (sim.day.phase === 'draft') sim.day = { ...sim.day, phase: 'night', phaseElapsed: 0 };
+      if (sim.day.phase !== 'forage' || i % 30 !== 0) continue;
+      for (const r of sim.rabbits) {
+        const p = prev.get(r.id);
+        const next = p && Math.hypot(r.x - p.x, r.z - p.z) < 0.02 ? (streak.get(r.id) ?? 0) + 1 : 0;
+        streak.set(r.id, next);
+        worstStreak = Math.max(worstStreak, next);
+        prev.set(r.id, { x: r.x, z: r.z });
+      }
+    }
+
+    // 40 samples = ~20s of never moving. Denning creatures legitimately
+    // hold still, but not during forage, and not for that long.
+    expect(worstStreak).toBeLessThan(40);
+  }, 120_000);
+});
+
 describe('spawnRabbits / spawnPredators', () => {
   it('injects mature rabbits into an already-running sim, at rabbit dens', () => {
     const sim = createSim(1, DEFAULT_TUNING);
