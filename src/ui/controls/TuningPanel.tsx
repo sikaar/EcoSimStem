@@ -4,6 +4,7 @@ import { liveTuning, resetLiveTuning } from '../../store/liveTuning';
 import { useSimStore } from '../../store/simStore';
 import { Knob } from '../components/Knob';
 import { useIsMobile } from '../hooks/useMediaQuery';
+import { AboutScreen } from '../screens/AboutScreen';
 import type { Tuning } from '../../engine/types';
 
 /**
@@ -350,6 +351,7 @@ const groupLabelStyle: CSSProperties = {
 
 export function TuningPanel() {
   const [open, setOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
   const [, bump] = useState(0);
   const requestRestart = useSimStore((s) => s.requestRestart);
   const isMobile = useIsMobile();
@@ -443,6 +445,23 @@ export function TuningPanel() {
           DEFAULTS
         </button>
       </div>
+
+      <button
+        onClick={() => setAboutOpen(true)}
+        style={{
+          marginTop: 8,
+          width: '100%',
+          background: 'transparent',
+          border: 0,
+          fontFamily: 'var(--mono)',
+          fontSize: 9,
+          color: 'var(--dim)',
+          cursor: 'pointer',
+        }}
+      >
+        ⓘ ABOUT
+      </button>
+      <AboutScreen open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </div>
   );
 }
