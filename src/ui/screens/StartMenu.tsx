@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import { clearSave, loadSave, type SaveV1 } from '../../store/persistence';
+import { AboutScreen } from './AboutScreen';
 
 /**
  * §12: "Never auto-resume." The prototype called loadState() at boot and
@@ -22,6 +23,7 @@ function timeAgo(ms: number): string {
 }
 
 const wrapStyle: CSSProperties = {
+  position: 'relative',
   height: '100%',
   display: 'grid',
   placeItems: 'center',
@@ -75,6 +77,7 @@ const ghostButtonStyle: CSSProperties = {
 
 export function StartMenu({ onNewRun, onResume }: StartMenuProps) {
   const [save, setSave] = useState<SaveV1 | null>(() => loadSave());
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   return (
     <main style={wrapStyle}>
@@ -109,7 +112,15 @@ export function StartMenu({ onNewRun, onResume }: StartMenuProps) {
         <button style={save ? ghostButtonStyle : primaryButtonStyle} onClick={onNewRun}>
           NEW RUN
         </button>
+
+        <button
+          onClick={() => setAboutOpen(true)}
+          style={{ marginTop: 16, background: 'transparent', border: 0, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--dim)', cursor: 'pointer' }}
+        >
+          ⓘ ABOUT
+        </button>
       </div>
+      <AboutScreen open={aboutOpen} onClose={() => setAboutOpen(false)} />
     </main>
   );
 }

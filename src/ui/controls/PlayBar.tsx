@@ -46,6 +46,20 @@ const playButtonStyle: CSSProperties = {
 
 const mobilePlayButtonStyle: CSSProperties = { ...playButtonStyle, fontSize: 10, padding: '5px 10px' };
 
+function toggleButtonStyle(active: boolean, mobile: boolean): CSSProperties {
+  return {
+    fontFamily: 'var(--mono)',
+    fontSize: mobile ? 9 : 10,
+    letterSpacing: '0.06em',
+    color: active ? 'var(--ink)' : 'var(--dim)',
+    background: active ? 'var(--teal)' : 'transparent',
+    border: '1px solid ' + (active ? 'var(--teal)' : 'var(--line)'),
+    borderRadius: 3,
+    padding: mobile ? '5px 8px' : '6px 10px',
+    cursor: 'pointer',
+  };
+}
+
 function speedButtonStyle(active: boolean, mobile: boolean): CSSProperties {
   return {
     fontFamily: 'var(--mono)',
@@ -65,6 +79,8 @@ export function PlayBar() {
   const togglePaused = useSimStore((s) => s.togglePaused);
   const speedMultiplier = useSimStore((s) => s.speedMultiplier);
   const setSpeedMultiplier = useSimStore((s) => s.setSpeedMultiplier);
+  const showSenseRings = useSimStore((s) => s.showSenseRings);
+  const toggleSenseRings = useSimStore((s) => s.toggleSenseRings);
   const isMobile = useIsMobile();
 
   return (
@@ -84,6 +100,9 @@ export function PlayBar() {
           </button>
         ))}
       </div>
+      <button onClick={toggleSenseRings} style={toggleButtonStyle(showSenseRings, isMobile)} aria-pressed={showSenseRings}>
+        RINGS
+      </button>
     </div>
   );
 }
