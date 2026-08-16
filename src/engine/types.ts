@@ -68,6 +68,15 @@ export interface Tuning {
    * expensive (§5.2), so a predator that runs flat out all day cannot
    * balance its energy budget no matter how well it hunts. */
   predatorPatrolFactor: number;
+  /** Hunger a predator accrues over one unfed day. Separate from the
+   * shared `hungerPerDay` because the two species eat on completely
+   * different schedules: a rabbit grazes several times a day off a food
+   * supply that doesn't run away, while a fox lands roughly one kill a day
+   * with heavy variance. On the rabbits' rate a predator dies after ~3.5
+   * hungry days, which turns a normal run of bad luck into extinction —
+   * measured as the single largest source of run-to-run variance in
+   * whether predators survive at all. */
+  predatorHungerPerDay: number;
   predatorGain: number;
   predatorBreedThreshold: number;
   predatorStart: number;

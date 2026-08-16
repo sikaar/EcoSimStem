@@ -170,7 +170,7 @@ export function GameView({ seed, mode, resumeDay, onMainMenu }: GameViewProps) {
         creatures.rabbits.sync(sim.rabbits);
         creatures.predators.sync(sim.predators);
         creatures.plants.sync(sim.plants.filter((p) => p.alive));
-        senseRings.update(sim.rabbits, useSimStore.getState().showSenseRings);
+        senseRings.update(sim.rabbits, sim.predators, liveTuning.predatorSense, useSimStore.getState().showSenseRings);
         controls.update();
         renderer.render(scene, camera);
 

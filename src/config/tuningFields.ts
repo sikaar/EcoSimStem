@@ -294,6 +294,17 @@ export const TUNING_FIELDS: readonly TuningFieldDef[] = [
     tier: 'cosmetic',
   },
   {
+    key: 'predatorHungerPerDay',
+    label: 'predator hunger / day',
+    min: 0.08,
+    max: 0.4,
+    step: 0.01,
+    format: (v) => v.toFixed(2),
+    tip: 'How fast a predator starves between kills. Its own clock, not the rabbits’ — a fox lands about one kill a day with heavy variance, so on the rabbit rate a normal run of bad luck is fatal.',
+    section: 'predator',
+    tier: 'terminal',
+  },
+  {
     key: 'predatorGain',
     label: 'hunger gain / kill',
     min: 0.1,

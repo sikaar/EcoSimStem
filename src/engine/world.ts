@@ -180,9 +180,19 @@ const dist = (a: Point, b: Point): number => Math.hypot(a.x - b.x, a.z - b.z);
 const RABBIT_DEN_MIN_SPACING = 8;
 const DEN_WATER_CLEARANCE = 3;
 const DEN_PLACEMENT_ATTEMPTS = 200;
+/** How far a predator den must stay from the world edge. "Maximise
+ * distance from the rabbit dens" is the right instinct — a predator should
+ * not live on the prey's doorstep — but taken literally on a square map it
+ * has exactly one answer: the corners. A predator that dens in a corner
+ * returns there every dusk, wanders out from there every dawn, and hunts a
+ * quadrant the rabbits have no reason to enter. Reserving a margin keeps
+ * the "far from prey" rule while leaving the den inside the map the game
+ * is actually played on. */
+const PREDATOR_DEN_EDGE_CLEARANCE = 6;
 
 /** 6 rabbit dens (min 8 m apart, never within 3 m of water) and 2 predator
- * dens (placed to maximise distance from the rabbit-den cluster) — §5.2. */
+ * dens (placed to maximise distance from the rabbit-den cluster, without
+ * ending up in a corner) — §5.2. */
 export function generateDens(
   world: World,
   rng: Rng,
@@ -208,6 +218,8 @@ export function generateDens(
     let bestMinDist = -Infinity;
     for (let attempt = 0; attempt < DEN_PLACEMENT_ATTEMPTS; attempt++) {
       const p = landPoint(world, rng, 1.6);
+      if (Math.abs(p.x) > world.half - PREDATOR_DEN_EDGE_CLEARANCE) continue;
+      if (Math.abs(p.z) > world.half - PREDATOR_DEN_EDGE_CLEARANCE) continue;
       const others = [...rabbitDens, ...dens.filter((d) => d.species === 'predator')];
       const minDist = others.length === 0 ? Infinity : Math.min(...others.map((d) => dist(d, p)));
       if (minDist > bestMinDist) {
