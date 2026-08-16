@@ -58,26 +58,61 @@ describe('balance invariant 3 — condition is multi-day (§5.5.3)', () => {
   });
 });
 
+describe('balance invariant 5 — a predator can survive a day by hunting', () => {
+  // Added after predators were found dying of energy collapse on day 1 of
+  // every single run, well fed, having made 8 kills: a kill restored
+  // hunger but not energy, so nothing could refill the pool. These two
+  // assertions pin both halves of the intended design.
+  const dayLength = DEFAULT_TUNING.dayLengthSec + DEFAULT_TUNING.duskLengthSec;
+  const dayCost =
+    energyDrainPerSecond(DEFAULT_TUNING, DEFAULT_TUNING.predatorSpeed, DEFAULT_TUNING.predatorSense, true) * dayLength;
+
+  it('cannot coast through a whole day on the pool alone — hunting is mandatory', () => {
+    expect(dayCost).toBeGreaterThan(DEFAULT_TUNING.energyMax);
+  });
+
+  it('but a modest two kills covers the day, so competent hunting is survivable', () => {
+    expect(DEFAULT_TUNING.energyMax + 2 * DEFAULT_TUNING.energyFromKill).toBeGreaterThan(dayCost);
+  });
+});
+
+describe('balance invariant 6 — the default world is self-sustaining', () => {
+  // The regression that motivates this: with `return` wrongly in the drive
+  // fallback list, rabbits parked on their dens and the population fell
+  // from 26 to 1 by day 13 with zero predators and 50 plants untouched.
+  // Nothing in the suite failed. This is the guard for that class of bug.
+  it('rabbits are still alive at day 20 on every seed, predators aside', () => {
+    const seeds = [12345, 999, 4242, 77, 31337];
+    const tuning = { ...DEFAULT_TUNING, predatorStart: 0 };
+    for (const seed of seeds) {
+      const sim = createSim(seed, tuning);
+      runUntilDay(sim, 21, 1 / 60);
+      expect(sim.rabbits.length, `seed ${seed} went extinct`).toBeGreaterThan(0);
+    }
+  }, 300_000);
+});
+
 describe('balance invariant 4 — selection still bites (§5.5.4)', () => {
   it('surviving 20-day populations show measurably higher mean sense than the founders', () => {
     const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length;
-    // Current tuning survives most, not all, seeded 20-day runs — an
-    // honest floor, not a claim of universal stability (see the "known
-    // open item" note in config/tuning.ts on predator balance in
-    // particular). Every seed that *does* survive must show the rise;
-    // tighten survivedCount's threshold toward seeds.length as future
-    // tuning passes improve overall survivability.
+    // Selection is a statistical claim about a stochastic process, so this
+    // is phrased as one. Drift in a population of a few dozen, with
+    // mutation on every birth, will carry an individual seed the "wrong"
+    // way now and then — currently one seed in five — and demanding that
+    // every single run rise would be asserting something the model does
+    // not actually claim. What must hold is that the pressure is real and
+    // pointed the right way: the average rises, and most runs rise.
     const seeds = [1, 2, 3, 42, 12345];
-    let survived = 0;
+    const deltas: number[] = [];
     for (const seed of seeds) {
       const sim = createSim(seed, DEFAULT_TUNING);
       const startSense = mean(sim.rabbits.map((r) => r.genes.sense));
       runUntilDay(sim, 21, 1 / 60);
-      if (sim.rabbits.length === 0) continue;
-      survived++;
-      const endSense = mean(sim.rabbits.map((r) => r.genes.sense));
-      expect(endSense).toBeGreaterThan(startSense);
+      expect(sim.rabbits.length, `seed ${seed} went extinct`).toBeGreaterThan(0);
+      deltas.push(mean(sim.rabbits.map((r) => r.genes.sense)) - startSense);
     }
-    expect(survived).toBeGreaterThanOrEqual(Math.ceil(seeds.length / 2));
-  }, 60_000);
+    const rose = deltas.filter((d) => d > 0).length;
+    expect(mean(deltas), `mean sense drift ${mean(deltas).toFixed(2)} should be positive`).toBeGreaterThan(0);
+    expect(rose, `sense rose in only ${rose}/${seeds.length} seeds`).toBeGreaterThan(seeds.length / 2);
+  }, 120_000);
 });

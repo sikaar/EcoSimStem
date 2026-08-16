@@ -49,6 +49,15 @@ export function refillEnergy(energy: number, tuning: Pick<Tuning, 'energyFromPla
   return Math.min(tuning.energyMax, energy + tuning.energyFromPlant);
 }
 
+/** A predator's equivalent of refillEnergy — a kill is a meal, so it
+ * restores the energy pool, not just hunger. Its absence was a real bug,
+ * not a design choice: predators drain ~3.6/s at their default speed
+ * against a 280 pool over a 90s day, so with no refill path they collapsed
+ * every single run before day 1 ended, well fed and mid-hunt. */
+export function refillEnergyFromKill(energy: number, tuning: Pick<Tuning, 'energyFromKill' | 'energyMax'>): number {
+  return Math.min(tuning.energyMax, energy + tuning.energyFromKill);
+}
+
 /** Fraction of a surplus (unspent energy at day's end) carried into
  * tomorrow's dawn pool (§6.4). */
 export function carriedSurplus(tuning: Pick<Tuning, 'energyCarryover'>, endOfDayEnergy: number): number {

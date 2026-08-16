@@ -8,6 +8,15 @@ import type { Tuning } from '../types';
  * walked past visible food while hunting for invisible water. Ranking
  * alone isn't enough — if the top drive has no visible target, arbitration
  * must fall through to the next one instead of committing to nothing.
+ *
+ * RETURN is deliberately NOT one of the ranked drives. It is a hard
+ * override only, checked once above the ranking. Including it in the
+ * fallback list looks harmless — it sorts last at low urgency — but
+ * `findTarget('return')` is the one lookup that *always* succeeds (the den
+ * is known regardless of sense), so it would swallow every fall-through
+ * and `wander` could never be reached. That bug parked any rabbit with no
+ * visible water or food on top of its den until it starved, which is what
+ * collapsed the population on default tuning.
  */
 
 export type DriveKind = 'water' | 'food' | 'mate' | 'return';
@@ -40,8 +49,19 @@ export interface ArbitrateParams {
 
 const FLEE_SENSE_MULTIPLIER = 1.15;
 const RETURN_OVERRIDE_THRESHOLD = 1.0;
-/** 15% safety margin baked into the urgency itself (§6.2). */
-const RETURN_SAFETY_MARGIN = 1.15;
+/**
+ * A need this small counts as already met, and chasing it pins the
+ * creature on top of the resource that satisfies it. A rabbit standing at
+ * the shore has its thirst reset to 0 every tick, then re-accrues a
+ * fraction of a percent, then targets the water it is already standing
+ * in — a stable loop that parks it at the bank for the whole day while
+ * hunger quietly kills it. (Exactly zero is not a sufficient threshold:
+ * thirst accrues continuously, so it is never exactly zero for more than
+ * one tick.) At the default ~0.005/s thirst rate this frees the creature
+ * ~10s after drinking, which is also roughly when seeking water again
+ * starts to be worth the trip.
+ */
+const MIN_DRIVE_URGENCY = 0.05;
 
 export function arbitrate(params: ArbitrateParams): ArbitrationResult {
   const { selfPos, sense, thirst, hunger, canBreed, urge, returnUrgency, nearestPredator, findTarget } = params;
@@ -60,12 +80,11 @@ export function arbitrate(params: ArbitrateParams): ArbitrationResult {
     { kind: 'water', urgency: thirst },
     { kind: 'food', urgency: hunger },
     { kind: 'mate', urgency: canBreed ? urge : -1 },
-    { kind: 'return', urgency: returnUrgency },
   ];
   drives.sort((a, b) => b.urgency - a.urgency);
 
   for (const drive of drives) {
-    if (drive.urgency < 0) continue;
+    if (drive.urgency < MIN_DRIVE_URGENCY) continue;
     const target = findTarget(drive.kind);
     if (target) return { action: 'commit', kind: drive.kind, target };
   }
@@ -78,7 +97,7 @@ export interface ReturnUrgencyParams {
   speed: number;
   energy: number;
   secondsUntilNightfall: number;
-  tuning: Pick<Tuning, 'moveCostK'>;
+  tuning: Pick<Tuning, 'moveCostK' | 'returnSafetyMargin'>;
 }
 
 /**
@@ -86,6 +105,14 @@ export interface ReturnUrgencyParams {
  * out of it for free: a fast creature burns energy quicker, so its
  * energyRatio climbs sooner and it must turn for home earlier — speed buys
  * arrival time and costs foraging time, with no special-casing required.
+ *
+ * Both ratios are computed against the straight-line distance home, which
+ * is always optimistic: the real path detours around lakes and obstacles.
+ * `returnSafetyMargin` is what covers that gap, so it has to exceed the
+ * typical path-inefficiency factor, not just add a token buffer. At the
+ * original 1.15 a rabbit 16m out turned for home with 1.2s of slack in a
+ * 15s dusk, and any detour at all made it late — exposure was the single
+ * largest cause of death.
  */
 export function computeReturnUrgency(params: ReturnUrgencyParams): number {
   const { distHome, speed, energy, secondsUntilNightfall, tuning } = params;
@@ -93,5 +120,5 @@ export function computeReturnUrgency(params: ReturnUrgencyParams): number {
   const timeNeeded = distHome / speed;
   const energyRatio = energyNeeded / Math.max(energy, 0.001);
   const timeRatio = timeNeeded / Math.max(secondsUntilNightfall, 0.001);
-  return Math.max(energyRatio, timeRatio) * RETURN_SAFETY_MARGIN;
+  return Math.max(energyRatio, timeRatio) * tuning.returnSafetyMargin;
 }

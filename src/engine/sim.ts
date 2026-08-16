@@ -138,9 +138,16 @@ export function spawnPredators(sim: SimState, count: number): number {
 function spawnNearDen(sim: SimState, dens: readonly Point[]): Point {
   if (dens.length === 0) return { x: 0, z: 0 };
   const den = sim.rng.pick(dens);
+  // Clamped to the world: dens sit as close as ~1.6m to the edge, so an
+  // unclamped scatter routinely placed founders past the boundary. That
+  // used to be unrecoverable — movement rejected every step that was still
+  // out of bounds, including the ones heading back in — so those founders
+  // stood frozen for the whole run.
+  const half = sim.world.half;
+  const clamp1 = (v: number): number => (v < -half ? -half : v > half ? half : v);
   return {
-    x: den.x + sim.rng.range(-FOUNDER_DEN_SCATTER, FOUNDER_DEN_SCATTER),
-    z: den.z + sim.rng.range(-FOUNDER_DEN_SCATTER, FOUNDER_DEN_SCATTER),
+    x: clamp1(den.x + sim.rng.range(-FOUNDER_DEN_SCATTER, FOUNDER_DEN_SCATTER)),
+    z: clamp1(den.z + sim.rng.range(-FOUNDER_DEN_SCATTER, FOUNDER_DEN_SCATTER)),
   };
 }
 
@@ -329,10 +336,17 @@ function simulatePredators(sim: SimState, dt: number): void {
       tuning,
     });
 
-    const prey = nearestInHash(rabbitHash, predator, tuning.predatorSense);
+    // A predator only pursues once it is actually hungry (§ ported from the
+    // prototype's `if (f.target && f.hunger > .15)`). Dropping that gate
+    // makes a well-fed predator keep killing everything in sense range: 4
+    // predators stripped 26 rabbits to 4 within two days, then starved on
+    // the empty map they had just made.
+    const hunting = predator.hunger > tuning.predatorHuntThreshold;
+    const prey = hunting ? nearestInHash(rabbitHash, predator, tuning.predatorSense) : null;
+    const headingHome = returnUrgency >= 1 && den !== null;
     let targetX: number;
     let targetZ: number;
-    if (returnUrgency >= 1 && den) {
+    if (headingHome && den) {
       targetX = den.x;
       targetZ = den.z;
     } else if (prey) {
@@ -344,14 +358,22 @@ function simulatePredators(sim: SimState, dt: number): void {
       targetZ = w.z;
     }
 
-    const result = move(world, predator, targetX, targetZ, tuning.predatorSpeed, dt);
+    // Full speed only when it matters — chasing prey, or racing nightfall.
+    // Idle patrolling ambles. The speed² cost term means a predator that
+    // sprints all day burns ~320 energy against a 280 pool and collapses
+    // before dusk no matter how many kills it makes, and returnUrgency is
+    // computed against predatorSpeed, so sprinting home is also what keeps
+    // that estimate honest.
+    const sprinting = headingHome || prey !== null;
+    const speed = sprinting ? tuning.predatorSpeed : tuning.predatorSpeed * tuning.predatorPatrolFactor;
+    const result = move(world, predator, targetX, targetZ, speed, dt);
     predator.x = result.x;
     predator.z = result.z;
     predator.vx = result.vx;
     predator.vz = result.vz;
     predator.dir = result.dir;
 
-    const drain = energyDrainPerSecond(tuning, tuning.predatorSpeed, tuning.predatorSense, result.moved);
+    const drain = energyDrainPerSecond(tuning, speed, tuning.predatorSense, result.moved);
     predator.energy = applyEnergyDrain(predator.energy, drain, dt);
 
     if (prey && isWithinKillRange(predator, prey)) {

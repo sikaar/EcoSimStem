@@ -1,6 +1,7 @@
 import type { Rng } from '../rng';
 import type { Point } from '../world';
 import { makePredator, type Predator } from '../entities/predator';
+import { refillEnergyFromKill } from './energy';
 import type { Tuning } from '../types';
 
 /** Contact radius for a kill — ported from the prototype's fox/rabbit
@@ -19,13 +20,25 @@ export interface HuntResult {
 }
 
 /** A successful hunt reduces hunger by predatorGain, mirroring the
- * prototype's `fox.hunger = clamp(fox.hunger - foxGain, 0, 1)`. */
-export function huntRabbit(predator: Predator, rabbitPos: Point, tuning: Pick<Tuning, 'predatorGain'>): HuntResult {
+ * prototype's `fox.hunger = clamp(fox.hunger - foxGain, 0, 1)`, and
+ * restores the energy pool by energyFromKill — the predator's counterpart
+ * to a rabbit eating a plant. The energy half was missing originally,
+ * which left hunting unrewarded in energy terms and killed every predator
+ * of collapse on day 1 regardless of how well it hunted. */
+export function huntRabbit(
+  predator: Predator,
+  rabbitPos: Point,
+  tuning: Pick<Tuning, 'predatorGain' | 'energyFromKill' | 'energyMax'>,
+): HuntResult {
   if (!isWithinKillRange(predator, rabbitPos)) {
     return { predator, killed: false };
   }
   return {
-    predator: { ...predator, hunger: Math.max(0, Math.min(1, predator.hunger - tuning.predatorGain)) },
+    predator: {
+      ...predator,
+      hunger: Math.max(0, Math.min(1, predator.hunger - tuning.predatorGain)),
+      energy: refillEnergyFromKill(predator.energy, tuning),
+    },
     killed: true,
   };
 }
