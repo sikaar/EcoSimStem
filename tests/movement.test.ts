@@ -99,6 +99,36 @@ describe('wanderTarget', () => {
     expect(Math.abs(target.x)).toBeLessThanOrEqual(28);
   });
 
+  it('walks inward from the map edge instead of targeting the boundary', () => {
+    // Regression guard for the wall-hugging defect. Bounds are enforced by
+    // clamping, so an outward heading used to clamp onto the boundary
+    // itself — legal, far enough away to pass the minimum-distance check,
+    // and therefore accepted. A creature standing at the edge facing out
+    // walked into the wall and slid along it: predators, which wander for
+    // nearly all of their ticks, spent 88% of the day in the outer 3m of
+    // the map, hunting a strip the prey never visited.
+    const world = emptyWorld({ half: 28 });
+    const pos = { x: 20, z: 0 };
+    // Facing +x with enough reach that the straight-ahead candidate, and
+    // the two 45-degree ones either side of it, all land outside the world.
+    // The old code clamped the first of those onto x = 28 and walked into
+    // the wall; the sweep must skip all three and take an inward heading.
+    const target = wanderTarget(world, pos, Math.PI / 2, 12);
+    expect(Math.abs(target.x)).toBeLessThan(world.half);
+    expect(target.x).toBeLessThanOrEqual(pos.x);
+    expect(Math.hypot(target.x - pos.x, target.z - pos.z)).toBeGreaterThan(1);
+  });
+
+  it('still falls back to a clamped target when nothing interior is reachable', () => {
+    // The interior preference must not resurrect the freeze it replaced: a
+    // creature already outside the world has no interior candidate at
+    // wander reach, and must still be handed something to walk toward.
+    const world = emptyWorld({ half: 28 });
+    const target = wanderTarget(world, { x: 40, z: 0 }, 0, 3);
+    expect(target).not.toEqual({ x: 40, z: 0 });
+    expect(Math.abs(target.x)).toBeLessThanOrEqual(28);
+  });
+
   it('returns its own position only when genuinely walled in on all sides', () => {
     const world = emptyWorld({ lakes: [{ x: 0, z: 0, rot: 0, rx: 1000, rz: 1000 }] });
     const target = wanderTarget(world, { x: 0, z: 0 }, 0, 3);

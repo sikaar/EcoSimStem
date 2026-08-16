@@ -26,6 +26,22 @@ describe('world generation', () => {
     expect(isInWater(world, world.half - 0.1, world.half - 0.1)).toBe(false);
   });
 
+  it('keeps predator dens out of the map corners', () => {
+    // "Maximise distance from the rabbit dens" has exactly one answer on a
+    // square map — the corners — and a predator that dens in a corner
+    // returns there every dusk and hunts a quadrant the prey never enters.
+    for (const seed of [1, 42, 4242, 31337]) {
+      const world = generateWorld(createRng(seed), DEFAULT_TUNING);
+      const predatorDens = world.dens.filter((d) => d.species === 'predator');
+      expect(predatorDens.length).toBe(DEFAULT_TUNING.predatorDens);
+      for (const den of predatorDens) {
+        expect(Math.max(Math.abs(den.x), Math.abs(den.z)), `seed ${seed} den in corner`).toBeLessThanOrEqual(
+          world.half - 6,
+        );
+      }
+    }
+  });
+
   it('never returns a land point inside water', () => {
     const rng = createRng(3);
     const world = generateWorld(createRng(3), DEFAULT_TUNING);

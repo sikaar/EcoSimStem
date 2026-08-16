@@ -30,10 +30,14 @@ export interface RunTally {
   totalBorn: number;
   totalDeaths: Record<DeathCause, number>;
   peakRabbits: number;
+  /** Highest predator count seen this run. Lets the census tell "none have
+   * been released yet" apart from "they were here and died", which a bare
+   * `predators 0` cannot. */
+  peakPredators: number;
 }
 
 function emptyRunTally(): RunTally {
-  return { totalBorn: 0, totalDeaths: emptyDeathTally(), peakRabbits: 0 };
+  return { totalBorn: 0, totalDeaths: emptyDeathTally(), peakRabbits: 0, peakPredators: 0 };
 }
 
 /** One point per day for the genes panel's sparklines (§9.2) — recorded
@@ -151,7 +155,14 @@ export const useSimStore = create<SimStoreState>((set) => ({
   dayReport: null,
   previousDayReport: null,
   setSnapshot: (snapshot) =>
-    set((state) => ({ ...snapshot, runTally: { ...state.runTally, peakRabbits: Math.max(state.runTally.peakRabbits, snapshot.rabbitCount) } })),
+    set((state) => ({
+      ...snapshot,
+      runTally: {
+        ...state.runTally,
+        peakRabbits: Math.max(state.runTally.peakRabbits, snapshot.rabbitCount),
+        peakPredators: Math.max(state.runTally.peakPredators, snapshot.predatorCount),
+      },
+    })),
   togglePaused: () => set((state) => ({ paused: !state.paused })),
   setSpeedMultiplier: (multiplier) => set({ speedMultiplier: multiplier }),
   showDayReport: (report) => set({ dayReport: report, paused: true }),

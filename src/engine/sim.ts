@@ -312,7 +312,13 @@ function simulatePredators(sim: SimState, dt: number): void {
   for (let i = sim.predators.length - 1; i >= 0; i--) {
     const predator = sim.predators[i]!;
 
-    predator.hunger = accrueHunger(predator.hunger, tuning, dt);
+    // Predators run on their own hunger clock (predatorHungerPerDay), not
+    // the shared rabbit rate — see the field's note in types.ts.
+    predator.hunger = accrueHunger(
+      predator.hunger,
+      { hungerPerDay: tuning.predatorHungerPerDay, dayLengthSec: tuning.dayLengthSec },
+      dt,
+    );
 
     const vitalCause = checkVitalDeathCause({
       ageDays: predator.ageDays,

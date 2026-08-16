@@ -14,6 +14,9 @@ import { isInWater, type World } from '../world';
 export interface Movable {
   x: number;
   z: number;
+  /** Current facing, if the caller tracks one. Used only to break ties
+   * between candidate headings — see MOMENTUM_WEIGHT. */
+  dir?: number;
 }
 
 export interface MoveResult {
@@ -37,6 +40,20 @@ const OBSTACLE_MARGIN = 1.1;
 const OBSTACLE_PUSH = 0.9;
 const WATER_REJECT_PAD = 0.25;
 const CANDIDATE_HEADINGS = 8;
+/** How much a candidate heading is penalised for turning away from the
+ * creature's current facing, relative to how much it is penalised for
+ * pointing away from the target.
+ *
+ * Without it the sweep is memoryless, and a creature whose direct path is
+ * blocked ping-pongs: from A the best legal heading leads to B, and from B
+ * the best legal heading is the reverse, leading back to A — a two-tick
+ * limit cycle that holds for the rest of the day. It was measured as one
+ * rabbit oscillating across 4cm for 28 seconds while its food sat 12m away
+ * behind a lake. Half a unit of turn costs as much as half a unit of
+ * misalignment, which is enough to make a 180-degree reversal lose to any
+ * sideways heading, so a blocked creature slides along the obstacle
+ * instead of vibrating against it. */
+const MOMENTUM_WEIGHT = 0.5;
 
 const clampAxis = (v: number, half: number): number => (v < -half ? -half : v > half ? half : v);
 
@@ -110,14 +127,23 @@ export function move(world: World, pos: Movable, targetX: number, targetZ: numbe
   const step = Math.min(speed * dt, distanceToTarget);
 
   const direct = clampToWorld(world, pos.x + dx * step, pos.z + dz * step);
-  if (isLegal(world, direct.x, direct.z)) {
+  // A direct step that clamps back onto the creature's own position is
+  // "legal" in the water sense but goes nowhere, and taking it strands the
+  // creature: pressed into a map corner with its desired heading pointing
+  // outward — which obstacle repulsion alone can produce — it would return
+  // a zero-length step every tick forever, never reaching the candidate
+  // sweep below that would have found an inward heading. Treat it as a
+  // failed step instead. (Standing on the target is handled above by
+  // ARRIVAL_EPSILON, so this only catches the pinned-against-the-edge case.)
+  const directMoves = direct.x !== pos.x || direct.z !== pos.z;
+  if (isLegal(world, direct.x, direct.z) && directMoves) {
     return {
       x: direct.x,
       z: direct.z,
       vx: (direct.x - pos.x) / dt,
       vz: (direct.z - pos.z) / dt,
       dir: desiredHeading,
-      moved: direct.x !== pos.x || direct.z !== pos.z,
+      moved: true,
     };
   }
 
@@ -128,7 +154,9 @@ export function move(world: World, pos: Movable, targetX: number, targetZ: numbe
     const c = clampToWorld(world, pos.x + Math.sin(heading) * step, pos.z + Math.cos(heading) * step);
     if (!isLegal(world, c.x, c.z)) continue;
     if (c.x === pos.x && c.z === pos.z) continue; // clamped to a no-op
-    const diff = angularDistance(heading, desiredHeading);
+    const diff =
+      angularDistance(heading, desiredHeading) +
+      (pos.dir === undefined ? 0 : MOMENTUM_WEIGHT * angularDistance(heading, pos.dir));
     if (diff < bestDiff) {
       bestDiff = diff;
       bestHeading = heading;
@@ -161,18 +189,38 @@ export function move(world: World, pos: Movable, targetX: number, targetZ: numbe
  * which makes `move` report a zero-length step and leave `dir` unchanged —
  * so the next tick samples the same failing arc, forever. Sweeping behind
  * as well means the only way to return self is being genuinely walled in
- * on all sides, which the world generator never produces. */
+ * on all sides, which the world generator never produces.
+ *
+ * Candidates are taken in two passes, and the order matters more than it
+ * looks. An outward heading, once clamped, lands exactly ON the boundary —
+ * legal (it isn't water) and far enough away to pass MIN_WANDER_DISTANCE,
+ * so a naive single pass accepts it and the creature walks into the wall
+ * and slides along it. That was measured, not theorised: predators, which
+ * wander for ~95% of their ticks, spent 88% of the day inside the outer 3m
+ * of a 56m map (rabbits, pulled inward by food and water targets, spent
+ * 18% — the band's fair share of the area). They starved patrolling an
+ * edge the prey had no reason to visit. Preferring targets that were
+ * already inside the world before clamping keeps wandering in the interior;
+ * the clamped pass is still there as a fallback so a creature that starts
+ * outside the world can steer back in instead of freezing. */
 export function wanderTarget(world: World, pos: Movable, dir: number, reach: number): { x: number; z: number } {
   const stride = (Math.PI * 2) / CANDIDATE_HEADINGS;
+  let clampedFallback: { x: number; z: number } | null = null;
+
   for (let i = 0; i < CANDIDATE_HEADINGS; i++) {
     const heading = dir + (i === 0 ? 0 : (i % 2 === 1 ? 1 : -1) * Math.ceil(i / 2) * stride);
-    const c = clampToWorld(world, pos.x + Math.sin(heading) * reach, pos.z + Math.cos(heading) * reach);
-    // The clamped candidate has to be somewhere worth walking to. In a map
-    // corner every outward heading clamps onto the corner itself, landing
-    // a hair from the creature — inside `move`'s arrival epsilon, so it
-    // "arrives" instantly and stops. Requiring real separation makes the
-    // sweep skip those and keep looking for a heading that points inward.
-    if (isLegal(world, c.x, c.z) && Math.hypot(c.x - pos.x, c.z - pos.z) > MIN_WANDER_DISTANCE) return c;
+    const rawX = pos.x + Math.sin(heading) * reach;
+    const rawZ = pos.z + Math.cos(heading) * reach;
+    const c = clampToWorld(world, rawX, rawZ);
+    // The candidate has to be somewhere worth walking to. In a map corner
+    // every outward heading clamps onto the corner itself, landing a hair
+    // from the creature — inside `move`'s arrival epsilon, so it "arrives"
+    // instantly and stops. Requiring real separation makes the sweep skip
+    // those and keep looking for a heading that points inward.
+    if (!isLegal(world, c.x, c.z) || Math.hypot(c.x - pos.x, c.z - pos.z) <= MIN_WANDER_DISTANCE) continue;
+    if (c.x === rawX && c.z === rawZ) return c;
+    clampedFallback ??= c;
   }
-  return { x: pos.x, z: pos.z };
+
+  return clampedFallback ?? { x: pos.x, z: pos.z };
 }

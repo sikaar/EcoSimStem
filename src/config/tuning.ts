@@ -57,12 +57,44 @@ import type { Tuning } from '../engine/types';
  *   wiped out in 3 of 5 seeds; 7: all 5 survive). More dens cut predator
  *   exposure deaths, which dominated once their energy was fixed.
  *
- * Known open item: rabbits now sustain 20 days reliably, but predators
- * still dwindle to zero over that span rather than reaching a stable
- * coexistence. Their survival improved from "dead on day 1, always" to
- * "several days", and prey-crash-then-starve is gone — but a true
- * predator-prey equilibrium is not reached yet. Flagged here rather than
- * silently left broken; balance.test.ts asserts the prey half only.
+ * ---------------------------------------------------------------------
+ * Third pass, which closed the "predators dwindle to zero" item the second
+ * pass left open. That, too, turned out to be a defect rather than a
+ * number: predators spent 88% of the day inside the outer 3m of the map
+ * (rabbits: 18%, the band's fair share of the area), because a wander
+ * heading that pointed out of the world got clamped ONTO the boundary and
+ * accepted, and because "place predator dens as far from the rabbit dens
+ * as possible" has exactly one answer on a square map — the corners. Both
+ * are fixed in movement.ts and world.ts; edge occupancy is now 17%.
+ *
+ * With predators finally hunting where the prey actually are, the old
+ * numbers made them far too effective — every seed ended in a prey crash —
+ * so the predator block was re-derived by sweep against 4-7 seeds:
+ *
+ * - predatorHungerPerDay 0.22 (new knob, was the shared 0.28). Predators
+ *   need their own hunger clock: a rabbit grazes several times a day off
+ *   food that doesn't run away, a fox lands ~0.5-1 kills a day with heavy
+ *   variance. On the rabbits' rate an ordinary run of bad luck starved
+ *   them out, which was the single largest source of run-to-run variance.
+ * - predatorSense 7 -> 6 and predatorBreedThreshold 0.22 -> 0.12. Both cut
+ *   predation pressure: fewer pursuits per day, and a much slower boom
+ *   after a good hunting streak. Sense is still the strongest single lever
+ *   on prey survival, and it is still deliberately below the rabbits' 7-14
+ *   range so prey usually spots the hunter first.
+ *
+ * Measured on the five balance seeds: both species share the world for
+ * 20/19/20/20/11 of 20 days, with both still alive at day 20 in 3 of 5 —
+ * against 0 of 5 and a starved-out predator in every run before. Kills per
+ * run went 8 -> 14-41. balance.test.ts invariant 7 pins this.
+ *
+ * Known open item, in the same spirit as the one this pass closed: with
+ * predators present, mean sense now drifts DOWN (-0.42 across the five
+ * seeds, versus +0.48 with predators off). Keen sense makes a rabbit flee
+ * earlier and more often, and fleeing is charged at speed², so under
+ * predation the gene partly punishes itself. Whether that is a feature
+ * (a real evolutionary trade-off) or a mis-costed flee response is a
+ * design question, not a bug to quietly tune away; invariant 4 asserts the
+ * food-finding pressure where it is well-posed and says so explicitly.
  */
 export const DEFAULT_TUNING: Tuning = {
   // ---- day cycle ----
@@ -123,11 +155,12 @@ export const DEFAULT_TUNING: Tuning = {
   // for. Measured as by far the strongest lever on whether the prey
   // population survives at all — at 11 the rabbits were wiped out in 3 of
   // 5 seeds, at 7 they survived all 5.
-  predatorSense: 7,
+  predatorSense: 6,
   predatorHuntThreshold: 0.15,
   predatorPatrolFactor: 0.55,
+  predatorHungerPerDay: 0.22,
   predatorGain: 0.62,
-  predatorBreedThreshold: 0.22,
+  predatorBreedThreshold: 0.12,
   predatorStart: 2,
 
   // ---- caps ----
