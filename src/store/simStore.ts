@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import type { DayPhase } from '../engine/day';
 import { emptyDeathTally, type DayReport, type DeathCause } from '../engine/systems/lifecycle';
+import { applyDraftCard, type DraftCard } from '../config/draftCards';
+import { liveTuning } from './liveTuning';
 
 /**
  * UI reads aggregates from here — never per-step, never the live entity
@@ -86,14 +88,20 @@ interface SimStoreState extends SimSnapshot {
    * counts) actually take effect. */
   restartSignal: number;
   requestRestart: () => void;
-  /** The day-phase machine correctly pauses at `draft` every
-   * draftIntervalDays (§4.2) waiting for a card pick — but the card draft
-   * UI is Phase 2 and doesn't exist yet, so without this the sim gets
-   * stuck there forever with nothing to dismiss it. Placeholder until
-   * real cards land. */
+  /** The day-phase machine pauses at `draft` every draftIntervalDays
+   * (§4.2) waiting for a card pick. `draftHand` is the three cards on
+   * offer; it is non-null exactly when the draft modal should be up. */
   draftPending: boolean;
+  draftHand: DraftCard[] | null;
   draftDismissRequested: boolean;
-  showDraftPending: () => void;
+  /** Called by the step loop the first tick a run enters `draft`, with a
+   * hand drawn from a (seed, day)-derived RNG — never the simulation's own
+   * stream, which resume replays against. */
+  offerDraft: (hand: DraftCard[]) => void;
+  /** Applies the chosen card to the live tuning and releases the phase.
+   * The card mutates `liveTuning` in place rather than replacing it,
+   * because the running sim holds that exact object by reference. */
+  chooseDraftCard: (card: DraftCard) => void;
   requestDraftDismiss: () => void;
   runTally: RunTally;
   /** True once both populations have hit zero and the extinction screen has
@@ -132,6 +140,7 @@ function freshRunState() {
     previousDayReport: null,
     paused: false,
     draftPending: false,
+    draftHand: null,
     draftDismissRequested: false,
     geneHistory: [],
     runTally: emptyRunTally(),
@@ -195,9 +204,14 @@ export const useSimStore = create<SimStoreState>((set) => ({
   restartSignal: 0,
   requestRestart: () => set((state) => ({ restartSignal: state.restartSignal + 1, ...freshRunState() })),
   draftPending: false,
+  draftHand: null,
   draftDismissRequested: false,
-  showDraftPending: () => set({ draftPending: true }),
-  requestDraftDismiss: () => set({ draftPending: false, draftDismissRequested: true }),
+  offerDraft: (hand) => set({ draftPending: true, draftHand: hand }),
+  chooseDraftCard: (card) => {
+    Object.assign(liveTuning, applyDraftCard(liveTuning, card));
+    set({ draftPending: false, draftHand: null, draftDismissRequested: true });
+  },
+  requestDraftDismiss: () => set({ draftPending: false, draftHand: null, draftDismissRequested: true }),
   runTally: emptyRunTally(),
   extinctionShown: false,
   showExtinction: (finalDayDeaths, finalDayBorn) =>
