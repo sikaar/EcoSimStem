@@ -18,6 +18,7 @@ import { Census } from '../panels/Census';
 import { StatsDrawer } from '../panels/StatsDrawer';
 import { ObjectivesPanel } from '../panels/ObjectivesPanel';
 import { DayPhaseIndicator } from '../components/DayPhaseIndicator';
+import { BackToMenuButton } from '../components/BackToMenuButton';
 import { PlayBar } from '../controls/PlayBar';
 import { TuningPanel } from '../controls/TuningPanel';
 import { useIsMobile } from '../hooks/useMediaQuery';
@@ -261,6 +262,7 @@ export function GameView({ seed, mode, resumeDay, onMainMenu }: GameViewProps) {
       <TuningPanel />
       <DayReport />
       <DraftModal />
+      <BackToMenuButton onClick={onMainMenu} />
       <ExtinctionScreen onMainMenu={onMainMenu} />
     </main>
   );

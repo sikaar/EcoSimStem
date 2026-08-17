@@ -4,11 +4,13 @@ import type { SaveV1 } from '../store/persistence';
 import type { GameMode } from '../store/gameStore';
 import { StartMenu } from './screens/StartMenu';
 import { GameView } from './screens/GameView';
+import { LegacyView } from './screens/LegacyView';
 
-type Screen = { kind: 'start' } | { kind: 'playing'; seed: number; mode: GameMode; resumeDay?: number };
+type Screen = { kind: 'start' } | { kind: 'playing'; seed: number; mode: GameMode; resumeDay?: number } | { kind: 'legacy' };
 
 export function App() {
   const [screen, setScreen] = useState<Screen>({ kind: 'start' });
+  const toStart = () => setScreen({ kind: 'start' });
 
   if (screen.kind === 'start') {
     return (
@@ -21,9 +23,14 @@ export function App() {
           Object.assign(liveTuning, save.tuningDelta);
           setScreen({ kind: 'playing', seed: save.seed, mode: save.mode ?? 'free', resumeDay: save.day });
         }}
+        onLegacy={() => setScreen({ kind: 'legacy' })}
       />
     );
   }
 
-  return <GameView seed={screen.seed} mode={screen.mode} resumeDay={screen.resumeDay} onMainMenu={() => setScreen({ kind: 'start' })} />;
+  if (screen.kind === 'legacy') {
+    return <LegacyView onMainMenu={toStart} />;
+  }
+
+  return <GameView seed={screen.seed} mode={screen.mode} resumeDay={screen.resumeDay} onMainMenu={toStart} />;
 }
