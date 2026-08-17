@@ -1,36 +1,1845 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<title>Ecosystem — V1 (legacy)</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecosystem — evolution under selection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  html, body { height: 100%; margin: 0; }
-  body {
-    display: grid;
-    place-items: center;
-    background: #0d1416;
-    color: #cfdcd9;
-    font-family: "IBM Plex Mono", ui-monospace, monospace;
-    text-align: center;
-    padding: 24px;
-    box-sizing: border-box;
-  }
-  .card { max-width: 480px; }
-  h1 { font-size: 15px; letter-spacing: 0.08em; color: #63b3c4; margin: 0 0 14px; }
-  p { font-size: 12.5px; line-height: 1.6; color: #7d918f; margin: 0 0 10px; }
-  code { color: #cfdcd9; background: rgba(159,216,221,.08); padding: 1px 5px; border-radius: 3px; }
+:root{
+  --ink:#0d1416; --panel:rgba(16,25,28,.88); --panel2:rgba(10,17,19,.94);
+  --line:rgba(159,216,221,.16); --line2:rgba(159,216,221,.28);
+  --text:#cfdcd9; --dim:#7d918f; --dim2:#4d5b59;
+  --teal:#63b3c4; --deep:#2f6f86;
+  --rabbit:#c2a479; --fox:#c94f3d; --leaf:#77b258; --gold:#f0c05a;
+  --sans:"Space Grotesk",system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--ink);color:var(--text);font-family:var(--sans);overflow:hidden}
+#view{position:fixed;inset:0}
+canvas{display:block}
+
+/* ---- panels ---- */
+.panel{position:fixed;background:var(--panel);border:1px solid var(--line);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+
+/* ---- census ---- */
+#readout{top:14px;left:14px;width:256px;padding:14px 14px 10px}
+.eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:0 0 10px}
+.census{display:flex;gap:14px;align-items:baseline;margin-bottom:8px}
+.census b{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1}
+.census span{font-family:var(--mono);font-size:9px;color:var(--dim);letter-spacing:.08em;display:block;margin-top:3px}
+.r b{color:var(--rabbit)} .f b{color:var(--fox)} .ep b{color:var(--gold)}
+#popChart{width:100%;height:52px;display:block;margin-bottom:10px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 10px;font-family:var(--mono);font-size:10.5px;color:var(--dim)}
+.grid i{font-style:normal;color:var(--text);float:right}
+
+/* ---- gene charts (right) ---- */
+#genes{top:14px;right:14px;width:280px;padding:14px}
+.gene{margin-bottom:8px}
+.gene .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--dim);margin-bottom:2px}
+.gene .lab i{font-style:normal;color:var(--text)}
+.gene canvas{width:100%;height:24px;display:block;border-bottom:1px solid rgba(159,216,221,.1)}
+.note{font-family:var(--mono);font-size:9.5px;color:var(--dim);line-height:1.5;margin:8px 0 0;padding-top:8px;border-top:1px solid var(--line)}
+
+/* ---- objectives (right, below genes) ---- */
+#objPanel{top:auto;right:14px;width:280px;padding:0}
+#objPanel.hidden{display:none}
+#objToggle{display:flex;justify-content:space-between;align-items:center;width:100%;border:0;
+  padding:8px 12px;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  color:var(--dim);background:transparent;cursor:pointer}
+#objToggle:hover{color:var(--teal)}
+#objCaret{transition:transform .16s}
+#objPanel.shut #objCaret{transform:rotate(-90deg)}
+#objPanel.shut #objBody{display:none}
+#objBody{padding:10px 12px 12px;border-top:1px solid var(--line)}
+.obj-level{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);margin:0 0 8px}
+.obj-item{margin-bottom:8px}
+.obj-item .obj-label{font-size:12px;margin-bottom:4px}
+.obj-item .obj-bar{height:3px;background:rgba(159,216,221,.15);margin-bottom:2px}
+.obj-item .obj-fill{height:100%;background:var(--teal);transition:width .4s}
+.obj-item .obj-val{font-family:var(--mono);font-size:9.5px;color:var(--dim)}
+.obj-side{font-size:11px;color:var(--dim);padding:3px 0;border-bottom:1px solid rgba(159,216,221,.06)}
+.obj-side.done{color:var(--leaf);text-decoration:line-through}
+
+/* ---- parameter tabs (bottom-left) ---- */
+#tuner{bottom:60px;left:14px;width:276px}
+#tabBar{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;border:0;background:transparent;padding:10px 0;cursor:pointer;
+  font-size:16px;position:relative;transition:background .15s}
+.tab:hover{background:rgba(99,179,196,.08)}
+.tab.active{background:rgba(99,179,196,.12)}
+.tab.active::after{content:'';position:absolute;bottom:0;left:10%;width:80%;height:2px;background:var(--teal)}
+.tab.locked{opacity:.35;cursor:not-allowed}
+.tab .lock-badge{position:absolute;top:4px;right:10px;font-size:8px;color:var(--fox)}
+#tuneBody{max-height:min(48vh,400px);overflow-y:auto;padding:10px 12px 12px}
+#tuneBody::-webkit-scrollbar{width:5px}
+#tuneBody::-webkit-scrollbar-thumb{background:rgba(99,179,196,.22)}
+
+/* ---- knobs ---- */
+.tgroup{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--teal);margin:10px 0 6px;padding-bottom:3px;border-bottom:1px solid rgba(99,179,196,.14)}
+.tgroup:first-child{margin-top:0}
+.knob{margin-bottom:8px;position:relative}
+.knob.locked-knob{opacity:.35;pointer-events:none}
+.knob .lab{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:2px}
+.knob .lab i{font-style:normal;color:var(--text)}
+.knob input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:3px;
+  background:rgba(159,216,221,.18);outline:none;cursor:pointer}
+.knob input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;
+  border-radius:50%;background:var(--teal);cursor:pointer}
+.knob input[type=range]::-moz-range-thumb{width:11px;height:11px;border:0;border-radius:50%;background:var(--teal)}
+.cost-badge{position:absolute;right:0;top:0;font-family:var(--mono);font-size:9px;
+  background:rgba(240,192,90,.2);border:1px solid rgba(240,192,90,.5);color:var(--gold);
+  padding:1px 5px;opacity:0;transition:opacity .2s;pointer-events:none}
+.cost-badge.show{opacity:1}
+.cost-badge.cant{background:rgba(201,79,61,.2);border-color:rgba(201,79,61,.5);color:var(--fox)}
+.cost-cancel{font-family:var(--mono);font-size:9px;color:var(--dim);text-align:right;height:12px;margin-top:1px}
+.cost-cancel.live{color:var(--teal);cursor:pointer}
+
+/* ---- settings section (inside settings tab) ---- */
+.field{margin-bottom:8px}
+.field label{display:block;font-family:var(--mono);font-size:10px;color:var(--dim);margin-bottom:2px}
+.field input[type=text],.field input[type=password]{width:100%;padding:6px 8px;
+  background:#0a1113;border:1px solid var(--line);color:var(--text);
+  font-family:var(--mono);font-size:10.5px}
+.field input:focus{outline:none;border-color:var(--teal)}
+.field input::placeholder{color:var(--dim2)}
+.prostatus{font-family:var(--mono);font-size:9.5px;line-height:1.5;color:var(--dim);margin:6px 0 0}
+.prostatus.ok{color:var(--leaf)} .prostatus.no{color:var(--fox)}
+#proLog{font-family:var(--mono);font-size:9px;line-height:1.4;margin-top:4px;max-height:80px;overflow-y:auto}
+.proline.ok{color:var(--leaf)} .proline.no{color:var(--fox);opacity:.8}
+.hint{font-family:var(--mono);font-size:9px;line-height:1.5;color:var(--dim);margin:0 0 8px}
+.hint a{color:var(--teal)}
+
+/* ---- bottom controls ---- */
+#controls{bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:5px;align-items:center;padding:7px 10px}
+button{font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;color:var(--text);
+  background:transparent;border:1px solid var(--line);padding:6px 10px;cursor:pointer;
+  transition:background .15s,border-color .15s,color .15s}
+button:hover{background:rgba(99,179,196,.1);border-color:var(--teal)}
+button:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+button.on{background:rgba(99,179,196,.16);border-color:var(--teal);color:#eaf6f7}
+button.danger:hover{background:rgba(201,79,61,.14);border-color:var(--fox);color:#f4d9d3}
+button.glow{animation:epglow .4s ease}
+@keyframes epglow{0%{background:rgba(240,192,90,.35)}100%{background:transparent}}
+.sep{width:1px;height:20px;background:var(--line);margin:0 2px}
+
+/* ---- tooltip ---- */
+#tip{position:fixed;z-index:30;max-width:230px;padding:8px 10px;pointer-events:none;
+  background:#080f11;border:1px solid rgba(99,179,196,.38);
+  font-family:var(--mono);font-size:10px;line-height:1.55;color:var(--text);
+  opacity:0;transition:opacity .12s;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#tip.on{opacity:1}
+#tip b{color:var(--teal)}
+
+/* ---- full-screen overlays ---- */
+.over{position:fixed;inset:0;z-index:20;display:none;place-content:center;
+  padding:20px;background:rgba(5,10,12,.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.over.on{display:grid}
+.sheet{width:min(580px,94vw);max-height:90vh;overflow-y:auto;padding:28px 30px;
+  background:var(--panel2);border:1px solid var(--line2)}
+
+/* start menu */
+.sheet h1{font-size:22px;font-weight:500;margin:0 0 4px;letter-spacing:-.01em}
+.sheet h1 em{font-style:normal;color:var(--teal)}
+.sheet .kicker{font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);margin:0 0 14px}
+.sheet p{font-size:13px;line-height:1.65;color:var(--text);margin:0 0 12px}
+.sheet p.dim{color:var(--dim);font-size:12px}
+.mode-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.mode-card{border:1px solid var(--line);padding:18px;cursor:pointer;transition:border-color .2s,background .2s;text-align:left;background:transparent}
+.mode-card:hover{border-color:var(--teal);background:rgba(99,179,196,.06)}
+.mode-card h2{font-size:14px;font-weight:500;margin:0 0 6px}
+.mode-card p{font-size:11.5px;color:var(--dim);margin:0;line-height:1.5}
+.mode-card .badge{display:inline-block;font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;
+  padding:2px 6px;border:1px solid;margin-bottom:8px}
+.badge.free{color:var(--teal);border-color:var(--teal)}
+.badge.game{color:var(--gold);border-color:var(--gold)}
+
+/* recap */
+.tally{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);margin:0 0 14px}
+.tally div{background:#0f181b;padding:9px 10px}
+.tally b{display:block;font-family:var(--mono);font-size:18px;font-weight:600;color:var(--text)}
+.tally span{font-family:var(--mono);font-size:9px;letter-spacing:.1em;color:var(--dim)}
+.drift{font-family:var(--mono);font-size:11px;margin:0 0 16px}
+.drift div{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(159,216,221,.08);color:var(--dim)}
+.drift i{font-style:normal;color:var(--text)}
+.up{color:var(--leaf)} .dn{color:var(--fox)}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.acts button{flex:1;min-width:120px;padding:10px}
+.rules{list-style:none;padding:0;margin:0 0 14px;font-size:12px;line-height:1.6}
+.rules li{padding:6px 0 6px 12px;border-left:2px solid rgba(99,179,196,.3);margin-bottom:4px}
+.rules li b{color:var(--teal);font-weight:500}
+
+/* ep flash */
+@keyframes epFlash{0%,100%{color:var(--gold)}50%{color:var(--fox)}}
+.ep-no{animation:epFlash .4s}
+
+/* loading */
+#loading{position:fixed;inset:0;display:grid;place-content:center;gap:8px;text-align:center;
+  background:var(--ink);z-index:25;font-family:var(--mono);font-size:11px;color:var(--dim);letter-spacing:.1em}
+#loading b{color:var(--teal)}
+
+@media(max-width:860px){
+  html,body{overflow:hidden;position:fixed;inset:0;width:100%;height:100%}
+  #view{touch-action:none}
+
+  /* all desktop floating panels are hidden; mobile uses its own sheet system */
+  #readout,#genes,#objPanel,#tuner,#controls{display:none!important}
+
+  /* ---- top bar: always-visible compact census ---- */
+  #mReadout{display:flex;position:fixed;top:0;left:0;right:0;z-index:12;
+    padding:8px 10px;padding-top:max(8px,env(safe-area-inset-top));
+    background:var(--panel);border-bottom:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    align-items:center;gap:14px;font-family:var(--mono)}
+  #mReadout .stat{display:flex;flex-direction:column;align-items:flex-start;line-height:1.1}
+  #mReadout .stat b{font-size:17px;font-weight:600}
+  #mReadout .stat span{font-size:8px;letter-spacing:.1em;color:var(--dim)}
+  #mReadout .r b{color:var(--rabbit)} #mReadout .f b{color:var(--fox)} #mReadout .ep b{color:var(--gold)}
+  #mReadout .spacer{flex:1}
+  #mPlay{padding:7px 12px}
+
+  /* ---- bottom nav: switches which sheet is open ---- */
+  #mNav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:12;
+    padding-bottom:max(0px,env(safe-area-inset-bottom));
+    background:var(--panel);border-top:1px solid var(--line);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+  #mNav button{flex:1;border:0;border-radius:0;background:transparent;padding:10px 4px 8px;
+    font-size:18px;line-height:1;position:relative;display:flex;flex-direction:column;
+    align-items:center;gap:3px}
+  #mNav button span.mlabel{font-family:var(--mono);font-size:8px;letter-spacing:.08em;color:var(--dim)}
+  #mNav button.active{background:rgba(99,179,196,.12)}
+  #mNav button.active span.mlabel{color:var(--teal)}
+  #mNav button.active::before{content:'';position:absolute;top:0;left:20%;width:60%;height:2px;background:var(--teal)}
+  #mNav button .lock-badge{position:absolute;top:2px;right:16%;font-size:8px}
+
+  /* ---- sheet: the one panel visible at a time, slides up from nav ---- */
+  #mSheet{display:none;position:fixed;left:0;right:0;bottom:54px;z-index:11;
+    max-height:62vh;background:var(--panel2);border-top:1px solid var(--line2);
+    overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;
+    padding:12px 14px calc(14px + env(safe-area-inset-bottom))}
+  #mSheet.open{display:block}
+  #mSheet .eyebrow{margin-top:0}
+
+  /* mobile tab strip inside the panel sheet (env/rabbit/fox/settings) */
+  #mPanelTabs{display:flex;gap:6px;margin-bottom:10px;overflow-x:auto;padding-bottom:2px}
+  #mPanelTabs button{flex-shrink:0;padding:7px 12px;font-size:10px}
+  #mPanelTabs button.active{background:rgba(99,179,196,.16);border-color:var(--teal);color:#eaf6f7}
+
+  /* bigger touch targets on knobs */
+  .knob{margin-bottom:14px}
+  .knob input[type=range]{height:26px;background:transparent}
+  .knob input[type=range]::-webkit-slider-runnable-track{height:4px;background:rgba(159,216,221,.2)}
+  .knob input[type=range]::-webkit-slider-thumb{margin-top:-9px;width:20px;height:20px}
+  .knob input[type=range]::-moz-range-track{height:4px;background:rgba(159,216,221,.2)}
+  .knob input[type=range]::-moz-range-thumb{width:20px;height:20px;border:0}
+  .knob .lab{font-size:11.5px}
+  .cost-badge{font-size:10px;padding:2px 7px}
+  .tgroup{font-size:10px}
+
+  /* controls sheet: play/speed/actions laid out for thumbs */
+  #mControlsBody{display:flex;flex-direction:column;gap:10px}
+  #mControlsBody .row{display:flex;gap:8px}
+  #mControlsBody button{flex:1;padding:12px 6px;font-size:11px}
+  #mControlsBody .row.speeds button{flex:1}
+
+  /* gene sheet: stacked full-width charts, bigger */
+  #mGeneBody .gene{margin-bottom:14px}
+  #mGeneBody .gene canvas{height:34px}
+  #mGeneBody .gene .lab{font-size:11px}
+  #mGeneBody #mPopChart{height:70px;margin-bottom:14px}
+
+  /* objectives inside their own nav entry, not a corner popover */
+  #mObjBody .obj-item{margin-bottom:12px}
+  #mObjBody .obj-label{font-size:13px}
+
+  /* overlays: full-bleed sheets rather than centered cards on very small screens */
+  .over{padding:0;align-items:flex-end}
+  .sheet{width:100%;max-width:100%;max-height:88vh;border-left:0;border-right:0;border-bottom:0;
+    padding:20px 18px calc(20px + env(safe-area-inset-bottom))}
+  .mode-grid{grid-template-columns:1fr}
+  .sheet h1{font-size:19px}
+
+  /* tooltip becomes a bottom sheet too on touch, anchored — simpler: full width, above nav */
+  #tip{left:10px!important;right:10px;max-width:none;bottom:60px!important;top:auto!important}
+}
+
+@media(max-width:860px) and (orientation:landscape){
+  #mSheet{max-height:78vh}
+}
+
 </style>
-</head>
-<body>
-  <div class="card">
-    <h1>V1 NOT YET INSTALLED</h1>
-    <p>
-      This is a placeholder for the original single-file prototype. The
-      "Legacy" button and its screen are wired up — replace this file with
-      the real one to finish the job.
-    </p>
-    <p>Drop the original prototype's HTML in at <code>public/legacy.html</code>, replacing this file exactly. No build step or code change needed — it's served as a static file.</p>
+
+<div id="view"></div>
+<div id="tip"></div>
+
+<!-- ===== START MENU ===== -->
+<div id="startMenu" class="over on">
+  <div class="sheet">
+    <p class="kicker">A coding adventure — after Sebastian Lague</p>
+    <h1>Nothing here is designed to survive.<br><em>Some of it does anyway.</em></h1>
+    <p>Rabbits are born with five numbers. They get hungry, thirsty, and want to breed. Whatever keeps them alive long enough to reproduce gets passed on — with a small chance of mutation each generation. You set the conditions. The numbers decide who survives.</p>
+    <div id="resumeCard" style="display:none;border:1px solid var(--teal);padding:12px 14px;margin-bottom:14px;background:rgba(99,179,196,.08)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-size:12.5px;color:var(--text);margin-bottom:2px">Resume previous run?</div>
+          <div id="resumeDetail" style="font-family:var(--mono);font-size:10px;color:var(--dim)"></div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button id="resumeBtn" class="on">RESUME</button>
+          <button id="resumeDismiss">DISCARD</button>
+        </div>
+      </div>
+    </div>
+    <div class="mode-grid">
+      <button class="mode-card" id="modeFreebtn">
+        <div class="badge free">FREE</div>
+        <h2>Free Mode</h2>
+        <p>All parameters unlocked from the start. No objectives, no costs. Pure observation and experimentation.</p>
+      </button>
+      <button class="mode-card" id="modeGamebtn">
+        <div class="badge game">GAME</div>
+        <h2>Game Mode</h2>
+        <p>Start with only environmental controls. Complete objectives to unlock parameters. Adjustments cost Evo Points.</p>
+      </button>
+    </div>
+    <p class="dim">Drag to orbit · Scroll to zoom · All parameters adjustable mid-run</p>
+    <p class="dim" style="margin-top:8px">A tribute to Sebastian Lague's <a href="https://www.youtube.com/watch?v=r_It_X7v-1E" target="_blank" rel="noopener" style="color:var(--teal)">Coding Adventure: Simulating an Ecosystem</a> — <a href="#" id="aboutFromMenu" style="color:var(--teal)">more about why</a></p>
   </div>
-</body>
-</html>
+</div>
+
+<!-- ===== RECAP ===== -->
+<div id="recap" class="over">
+  <div class="sheet">
+    <p class="kicker">Extinction</p>
+    <h1 id="recapTitle">The population is gone.</h1>
+    <p id="recapVerdict"></p>
+    <div class="tally" id="recapTally"></div>
+    <p class="kicker" style="margin-bottom:8px">Gene drift</p>
+    <div class="drift" id="recapDrift"></div>
+    <div class="acts">
+      <button id="again" class="on">RUN AGAIN</button>
+      <button id="againMenu">MAIN MENU</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ABOUT ===== -->
+<div id="about" class="over">
+  <div class="sheet">
+    <p class="kicker">About this artifact</p>
+    <h1>A tribute, not an original idea.</h1>
+    <p>This whole thing exists because of one video: Sebastian Lague's <a href="https://www.youtube.com/watch?v=r_It_X7v-1E" target="_blank" rel="noopener" style="color:var(--teal)">Coding Adventure: Simulating an Ecosystem</a>, published in 2019. Watching a population of cube rabbits stumble through hunger, thirst, and reproduction — and watching their genes actually drift in response to what killed them and what didn't — is what made evolution by natural selection feel less like a textbook diagram and more like something you could <em>watch happen</em>.</p>
+    <p>What stayed with me wasn't the polish, it was the mechanism: a handful of numbers with no instructions attached, filtered generation after generation by nothing more than who managed to eat, drink, and breed before their timer ran out. Change one setting — how far a rabbit can see, how long a plant takes to regrow, how fast a fox runs — and the entire population's genetic future bends around it. Small change, different species, a few generations later.</p>
+    <p>This build is my attempt to sit inside that idea a while longer: rebuilt in the browser with three.js, dressed with Polyfork's low-poly kit, and turned into something you can tune while it runs rather than only watch. None of the core concept is mine. The rabbits, the foxes, the hunger and thirst and gestation trade-offs, the whole shape of the simulation — that's Lague's, watched closely and rebuilt as a way of understanding it properly. If you haven't seen the original, it's fifteen minutes and it's worth every one of them.</p>
+    <p class="dim">Built with three.js · environment assets from Polyfork · not affiliated with Sebastian Lague</p>
+    <div class="acts">
+      <button id="aboutClose" class="on">CLOSE</button>
+      <a href="https://www.youtube.com/watch?v=r_It_X7v-1E" target="_blank" rel="noopener" style="flex:1;min-width:120px"><button style="width:100%">WATCH THE VIDEO</button></a>
+    </div>
+  </div>
+</div>
+
+<!-- ===== HUD ===== -->
+<div id="readout" class="panel">
+  <p class="eyebrow">Census</p>
+  <div class="census">
+    <div class="r"><b id="nRab">0</b><span>RABBITS</span></div>
+    <div class="f"><b id="nFox">0</b><span>FOXES</span></div>
+    <div><b id="gen" style="color:var(--teal)">1</b><span>GEN</span></div>
+    <div class="ep" id="epWrap" style="display:none"><b id="epVal">0</b><span>EP</span></div>
+  </div>
+  <canvas id="popChart"></canvas>
+  <div class="grid">
+    <div>born <i id="dBorn">0</i></div>
+    <div>thirst <i id="dThirst">0</i></div>
+    <div>hunger <i id="dHunger">0</i></div>
+    <div>eaten <i id="dEaten">0</i></div>
+    <div>old age <i id="dAge">0</i></div>
+    <div>elapsed <i id="clock">0s</i></div>
+  </div>
+</div>
+
+<!-- ===== GENE CHARTS ===== -->
+<div id="genes" class="panel">
+  <p class="eyebrow">Gene averages — living rabbits</p>
+  <div class="gene"><div class="lab"><span>SENSORY RANGE</span><i id="vSense">–</i></div><canvas data-k="sense"></canvas></div>
+  <div class="gene"><div class="lab"><span>SPEED</span><i id="vSpeed">–</i></div><canvas data-k="speed"></canvas></div>
+  <div class="gene"><div class="lab"><span>REPRODUCTIVE URGE</span><i id="vUrge">–</i></div><canvas data-k="urge"></canvas></div>
+  <div class="gene"><div class="lab"><span>GESTATION</span><i id="vGest">–</i></div><canvas data-k="gest"></canvas></div>
+  <div class="gene"><div class="lab"><span>DESIRABILITY (♂)</span><i id="vDes">–</i></div><canvas data-k="des"></canvas></div>
+  <p class="note">Curves show live averages over the last 420 samples. Each gene inherits from one parent, with a small chance to mutate.</p>
+</div>
+
+<!-- ===== OBJECTIVES ===== -->
+<div id="objPanel" class="panel hidden">
+  <button id="objToggle" aria-expanded="true">
+    <span>OBJECTIVES</span><span id="objCaret">▾</span>
+  </button>
+  <div id="objBody"></div>
+</div>
+
+<!-- ===== PARAMETER TABS ===== -->
+<div id="tuner" class="panel">
+  <div id="tabBar">
+    <button class="tab active" data-tab="env" title="Environment">🌿</button>
+    <button class="tab" data-tab="rabbit" title="Rabbit">🐇</button>
+    <button class="tab" data-tab="fox" title="Fox">🦊</button>
+    <button class="tab" data-tab="settings" title="Settings">⚙️</button>
+  </div>
+  <div id="tuneBody"></div>
+</div>
+
+<!-- ===== CONTROLS ===== -->
+<div id="controls" class="panel">
+  <button id="play" class="on">PAUSE</button>
+  <div class="sep"></div>
+  <button class="sp" data-s="1">1×</button>
+  <button class="sp on" data-s="2">2×</button>
+  <button class="sp" data-s="4">4×</button>
+  <button class="sp" data-s="8">8×</button>
+  <div class="sep"></div>
+  <button id="addRab">+20 RABBITS</button>
+  <button id="addFox" class="danger">RELEASE FOXES</button>
+  <div class="sep"></div>
+  <button id="rings">SENSES</button>
+  <button id="resetBtn">RESET</button>
+  <div class="sep"></div>
+  <button id="aboutBtn" title="About this tribute">ⓘ ABOUT</button>
+</div>
+
+<!-- ===== MOBILE LAYOUT ===== -->
+<div id="mReadout">
+  <div class="stat r"><b id="mNRab">0</b><span>RABBITS</span></div>
+  <div class="stat f"><b id="mNFox">0</b><span>FOXES</span></div>
+  <div class="stat"><b id="mGen" style="color:var(--teal)">1</b><span>GEN</span></div>
+  <div class="stat ep" id="mEpWrap" style="display:none"><b id="mEpVal">0</b><span>EP</span></div>
+  <div class="spacer"></div>
+  <button id="mPlay" class="on">PAUSE</button>
+</div>
+
+<div id="mSheet">
+  <div id="mSheetCensus">
+    <p class="eyebrow">Census</p>
+    <canvas id="mPopChart" style="width:100%;height:52px;display:block;margin-bottom:10px"></canvas>
+    <div class="grid">
+      <div>born <i id="mBorn">0</i></div>
+      <div>thirst <i id="mThirst">0</i></div>
+      <div>hunger <i id="mHunger">0</i></div>
+      <div>eaten <i id="mEaten">0</i></div>
+      <div>old age <i id="mAge">0</i></div>
+      <div>elapsed <i id="mClock">0s</i></div>
+    </div>
+  </div>
+
+  <div id="mSheetGenes" style="display:none">
+    <p class="eyebrow">Gene averages</p>
+    <div id="mGeneBody">
+      <div class="gene"><div class="lab"><span>SENSORY RANGE</span><i id="mVSense">–</i></div><canvas data-k="sense"></canvas></div>
+      <div class="gene"><div class="lab"><span>SPEED</span><i id="mVSpeed">–</i></div><canvas data-k="speed"></canvas></div>
+      <div class="gene"><div class="lab"><span>REPRODUCTIVE URGE</span><i id="mVUrge">–</i></div><canvas data-k="urge"></canvas></div>
+      <div class="gene"><div class="lab"><span>GESTATION</span><i id="mVGest">–</i></div><canvas data-k="gest"></canvas></div>
+      <div class="gene"><div class="lab"><span>DESIRABILITY (♂)</span><i id="mVDes">–</i></div><canvas data-k="des"></canvas></div>
+    </div>
+  </div>
+
+  <div id="mSheetPanel" style="display:none">
+    <div id="mPanelTabs">
+      <button class="mptab active" data-tab="env">🌿 Environment</button>
+      <button class="mptab" data-tab="rabbit">🐇 Rabbit</button>
+      <button class="mptab" data-tab="fox">🦊 Fox</button>
+      <button class="mptab" data-tab="settings">⚙️ Settings</button>
+    </div>
+    <div id="mTuneBody"></div>
+  </div>
+
+  <div id="mSheetObjectives" style="display:none">
+    <div id="mObjBody"></div>
+  </div>
+
+  <div id="mSheetControls" style="display:none">
+    <div id="mControlsBody">
+      <div class="row speeds">
+        <button class="msp" data-s="1">1×</button>
+        <button class="msp on" data-s="2">2×</button>
+        <button class="msp" data-s="4">4×</button>
+        <button class="msp" data-s="8">8×</button>
+      </div>
+      <div class="row">
+        <button id="mAddRab">+20 RABBITS</button>
+        <button id="mAddFox" class="danger">RELEASE FOXES</button>
+      </div>
+      <div class="row">
+        <button id="mRings">SENSES</button>
+        <button id="mResetBtn">RESET</button>
+      </div>
+      <div class="row">
+        <button id="mAboutBtn">ⓘ ABOUT</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="mNav">
+  <button class="mnav-btn active" data-sheet="census"><span>📊</span><span class="mlabel">CENSUS</span></button>
+  <button class="mnav-btn" data-sheet="genes"><span>🧬</span><span class="mlabel">GENES</span></button>
+  <button class="mnav-btn" data-sheet="panel"><span>🎛️</span><span class="mlabel">PANEL</span></button>
+  <button class="mnav-btn" id="mObjNav" data-sheet="objectives" style="display:none"><span>🎯</span><span class="mlabel">GOALS</span></button>
+  <button class="mnav-btn" data-sheet="controls"><span>▶️</span><span class="mlabel">MORE</span></button>
+</div>
+
+<div id="loading">
+  LOADING ASSETS<br><b id="loadState">three.js</b>
+</div>
+<script>
+/* ============================================================
+   HELPERS  (must come first — used throughout)
+   ============================================================ */
+const $=id=>document.getElementById(id);
+const rnd=(a,b)=>a+Math.random()*(b-a);
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+
+/* ============================================================
+   CONSTANTS & CONFIGURATION
+   ============================================================ */
+const HALF=28, DT=1/60, CDN='https://polyfork.dev/cdn/';
+const REDUCED=matchMedia('(prefers-reduced-motion:reduce)').matches;
+const flatMat=c=>new THREE.MeshPhongMaterial({color:c,flatShading:true,shininess:0,specular:0});
+
+const FREE_ASSETS={
+  water:'water-blob-f266b8', grass:'grass-terrain-blob-c4f709', dirt:'dirt-terrain-blob-94e829',
+  pine:'tall-pine-tree-ab4108', young:'young-pine-0d7695', oak:'broadleaf-oak-997c22',
+  flower:'wildflower-68d3a1', tuft:'grass-tuft-a40a08', reed:'cattail-reed-6abbb3',
+  lily:'lily-pad-86edbb', rockS:'small-rock-db33a7', rockM:'medium-rock-e08405',
+  boulder:'large-boulder-a29b99', log:'fallen-log-1685fb'
+};
+const PRO_ASSETS={
+  proRabbit:'forest-rabbit-ea2da0', proFox:'red-fox-5c3bc0',
+  bush:'round-bush-cd2ac0', fern:'fern-plant-1559b8',
+  maple:'maple-tree-65fa12', birch:'birch-tree-181b33',
+  stump:'tree-stump-ec3f48', toadstool:'toadstool-257a4a'
+};
+const RIG={
+  rabbit:{legs:['leg-hl','leg-hr','leg-fl','leg-fr'],ears:['ear-l','ear-r']},
+  fox:{legs:['LeftHindUpLeg','RightHindUpLeg','LeftFrontUpLeg','RightFrontUpLeg'],tail:['Tail']}
+};
+
+/* live sim parameters — everything reads from here */
+const TUNE={
+  hungerRate:.0195, thirstRate:.0170, speedCost:.008,
+  drinkRadius:1.30, eatRadius:.60,
+  maturity:26, lifeMin:115, lifeMax:165,
+  plants:34, regrowMin:6, regrowMax:16,
+  mutChance:.13, mutStep:.09,
+  senseMin:5, senseMax:10,
+  speedMin:1.4, speedMax:2.6,
+  urgeMin:.35, urgeMax:.8,
+  gestMin:9, gestMax:20,
+  capRabbits:170, capFoxes:42,
+  foxHunger:.019, foxSpeed:3.0, foxSense:11, foxGain:.62, foxBreed:.22, foxStart:6
+};
+const DEFAULTS=Object.freeze({...TUNE});
+const RANGE={sense:[3,15],speed:[1,4.2],urge:[.12,.95],gest:[6,26],des:[0,1]};
+
+/* ============================================================
+   GAME STATE
+   ============================================================ */
+let gameMode=false; // free or game
+let ep=0, epHistory=[];
+let level=1, levelDone=false;
+let consecGens=0, consecThresh=0, lastGenAtCheck=0; // consecutive-gen tracker
+let foxEverReleased=false;
+let simT=0, paused=true, speed=2, showRings=false;
+let stats={}, history=[], runStart=null, lastLiving=null, recapShown=false;
+let rabbits=[], foxes=[], plants=[];
+
+/* EP cost tiers */
+const COST={
+  immediate:{base:40,formula:'convex'},
+  structural:{base:20,formula:'linear'},
+  terminal:{base:60,formula:'terminal'},
+  cosmetic:{base:8,formula:'flat'},
+  free:{base:0,formula:'flat'}
+};
+const KNOB_TIER={
+  plants:'immediate', regrowMin:'cosmetic', regrowMax:'cosmetic',
+  hungerRate:'immediate', thirstRate:'immediate', speedCost:'cosmetic',
+  maturity:'structural', lifeMin:'cosmetic', lifeMax:'cosmetic',
+  mutChance:'structural', mutStep:'structural',
+  senseMin:'structural', senseMax:'structural',
+  speedMin:'structural', speedMax:'structural',
+  urgeMin:'structural', urgeMax:'structural',
+  gestMin:'structural', gestMax:'structural',
+  foxHunger:'immediate', foxSpeed:'terminal', foxSense:'immediate',
+  foxGain:'terminal', foxBreed:'terminal', foxStart:'terminal',
+  drinkRadius:'cosmetic', eatRadius:'cosmetic',
+  capRabbits:'free', capFoxes:'free'
+};
+
+/* unlock map per level (game mode) — knobs unlocked cumulatively */
+const UNLOCK={
+  1:['plants','regrowMin','regrowMax'],
+  2:['hungerRate','thirstRate','eatRadius','drinkRadius'],
+  3:['maturity','senseMin','senseMax','speedMin','speedMax','mutChance','mutStep'],
+  4:['foxHunger','foxSpeed','foxSense','foxGain','foxBreed','foxStart',
+     'urgeMin','urgeMax','gestMin','gestMax'],
+  5:['lifeMin','lifeMax','speedCost','capRabbits','capFoxes']
+};
+
+function unlockedKnobs(){
+  if(!gameMode) return Object.keys(TUNE);
+  const out=[];
+  for(let l=1;l<=level;l++) if(UNLOCK[l]) out.push(...UNLOCK[l]);
+  return out;
+}
+function isUnlocked(k){ return unlockedKnobs().includes(k); }
+function foxTabLocked(){ return gameMode && level<4; }
+
+/* ============================================================
+   LEVEL / OBJECTIVE DEFINITIONS
+   ============================================================ */
+const LEVELS=[
+  {
+    num:1, name:'First Winter',
+    desc:'The world is raw. You can only touch the food supply.',
+    epBonus:60,
+    primary:{
+      label:'Reach 30 rabbits',
+      check:()=>rabbits.length>=30,
+      progress:()=>({val:rabbits.length,max:30})
+    },
+    sides:[
+      {label:'Reach 30 without changing any parameter',done:false,
+       check:()=>rabbits.length>=30&&_noParamChanged},
+      {label:'Survive to generation 5',done:false,
+       check:()=>stats.gen>=5}
+    ]
+  },
+  {
+    num:2, name:'Pressure',
+    desc:'Tighten or loosen the metabolic screws. Find the band where selection bites.',
+    epBonus:80,
+    primary:{
+      label:'Maintain ≥ 25 rabbits for 5 consecutive generations',
+      check:()=>consecGens>=5,
+      progress:()=>({val:Math.min(consecGens,5),max:5})
+    },
+    sides:[
+      {label:'Do it without touching hunger/thirst rates',done:false,
+       check:()=>consecGens>=5&&!_metabolismChanged},
+      {label:'Reach generation 8',done:false,
+       check:()=>stats.gen>=8}
+    ]
+  },
+  {
+    num:3, name:'The Gene Pool',
+    desc:'The starting gene distribution is yours. Design the organism.',
+    epBonus:100,
+    primary:{
+      label:'Reach gen 12 with average sensory range > 9 m',
+      check:()=>stats.gen>=12&&_avgSense()>9,
+      progress:()=>({val:Math.min(stats.gen,12),max:12,label2:`sense ${_avgSense().toFixed(1)} m`})
+    },
+    sides:[
+      {label:'Reach gen 12 with average speed lower than start',done:false,
+       check:()=>stats.gen>=12&&_avgSpeed()<_startSpeed},
+      {label:'Zero thirst deaths in any 3-generation window',done:false,
+       check:()=>_noThirst3Gen}
+    ]
+  },
+  {
+    num:4, name:'Predator',
+    desc:'The fox changes what counts as fit. Breed early or never breed at all.',
+    epBonus:120,
+    primary:{
+      label:'Both populations survive 6 consecutive generations after fox release',
+      check:()=>foxEverReleased&&consecGens>=6,
+      progress:()=>({val:foxEverReleased?Math.min(consecGens,6):0,max:6})
+    },
+    sides:[
+      {label:'Coexistence with fox speed > 3.0',done:false,
+       check:()=>foxEverReleased&&consecGens>=6&&TUNE.foxSpeed>3.0},
+      {label:'Rabbit speed gene rises 20% after fox release',done:false,
+       check:()=>_speedRisePct>=20}
+    ]
+  },
+  {
+    num:5, name:'Equilibrium',
+    desc:'All parameters unlocked. Find the stable configuration — or learn why there isn\'t one.',
+    epBonus:200,
+    primary:{
+      label:'Maintain coexistence for 15 consecutive generations',
+      check:()=>foxEverReleased&&consecGens>=15,
+      progress:()=>({val:foxEverReleased?Math.min(consecGens,15):0,max:15})
+    },
+    sides:[
+      {label:'Achieve it with mutation chance ≥ 30%',done:false,
+       check:()=>foxEverReleased&&consecGens>=15&&TUNE.mutChance>=0.3},
+      {label:'Let everything go extinct, then reach L5 faster',done:false,
+       check:()=>false /* tracked externally */}
+    ]
+  }
+];
+
+/* objective helper state */
+let _noParamChanged=true, _metabolismChanged=false, _startSpeed=2.0;
+let _speedAtFoxRelease=0, _speedRisePct=0, _noThirst3Gen=false;
+let _thirstWindow=[], _prevThirst=0;
+
+function _avgSense(){
+  if(!history.length) return 0;
+  return history[history.length-1].sense||0;
+}
+function _avgSpeed(){
+  if(!history.length) return _startSpeed;
+  return history[history.length-1].speed||_startSpeed;
+}
+
+/* ============================================================
+   SAVE / LOAD  (localStorage — works locally, not in artifacts)
+   ============================================================ */
+const SAVE_KEY='ecosystem_v1';
+function saveState(){
+  try{
+    const s={
+      gameMode, level, ep, epHistory:epHistory.slice(-20),
+      stats:{...stats}, simT,
+      tuneOverrides:diffFromDefaults(),
+      timestamp:Date.now()
+    };
+    localStorage.setItem(SAVE_KEY,JSON.stringify(s));
+  }catch(e){}
+}
+function loadState(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);
+    if(!raw) return false;
+    const s=JSON.parse(raw);
+    // only restore if recent (< 4 hours)
+    if(Date.now()-s.timestamp>4*3600*1000) return false;
+    gameMode=s.gameMode; level=s.level||1; ep=s.ep||0;
+    epHistory=s.epHistory||[];
+    Object.assign(TUNE,s.tuneOverrides||{});
+    return true;
+  }catch(e){ return false; }
+}
+function clearSave(){ try{ localStorage.removeItem(SAVE_KEY); }catch(e){} }
+function peekSave(){
+  try{
+    const raw=localStorage.getItem(SAVE_KEY);if(!raw)return null;
+    const s=JSON.parse(raw);
+    if(Date.now()-s.timestamp>4*3600*1000)return null;
+    return s;
+  }catch(e){return null;}
+}
+function offerResumeIfAny(){
+  const s=peekSave();
+  const card=$('resumeCard');
+  if(!card)return;
+  if(!s){card.style.display='none';return;}
+  card.style.display='';
+  const mins=Math.max(1,Math.round((Date.now()-s.timestamp)/60000));
+  $('resumeDetail').textContent=`${s.gameMode?'Game Mode · Level '+(s.level||1):'Free Mode'} — saved ${mins} min ago`;
+  $('resumeBtn').onclick=()=>{ if(loadState()) startRun(gameMode,true); };
+  $('resumeDismiss').onclick=()=>{ clearSave(); card.style.display='none'; };
+}
+function diffFromDefaults(){
+  const d={};
+  for(const k in TUNE) if(TUNE[k]!==DEFAULTS[k]) d[k]=TUNE[k];
+  return d;
+}
+
+/* ============================================================
+   THREE.JS BOOT
+   ============================================================ */
+let THREE;
+function loadScript(src){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=src; s.onload=()=>res(); s.onerror=()=>rej(new Error(src));
+    document.head.appendChild(s);
+  });
+}
+async function first(urls){
+  for(const u of urls){ try{ await loadScript(u); return true; }catch(e){} }
+  return false;
+}
+(async()=>{
+  const st=document.getElementById('loadState');
+  await first(['https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+               'https://unpkg.com/three@0.128.0/build/three.min.js']);
+  THREE=window.THREE;
+  st.textContent='models';
+  await fetchModels();
+  document.getElementById('loading').style.display='none';
+  initScene(); buildWorld(); initUI(); buildTabs();
+  // if a recent save exists, offer to resume rather than silently skipping the menu
+  offerResumeIfAny();
+})();
+
+/* ============================================================
+   GLB PARSER  (no GLTFLoader dependency)
+   ============================================================ */
+const COMP={5120:Int8Array,5121:Uint8Array,5122:Int16Array,5123:Uint16Array,5125:Uint32Array,5126:Float32Array};
+const NCOMP={SCALAR:1,VEC2:2,VEC3:3,VEC4:4,MAT4:16};
+function parseGLB(buf){
+  const dv=new DataView(buf);
+  if(dv.getUint32(0,true)!==0x46546C67) throw new Error('not GLB');
+  let off=12,json=null,bin=null;
+  while(off+8<=dv.byteLength){
+    const len=dv.getUint32(off,true),type=dv.getUint32(off+4,true),start=off+8;
+    if(type===0x4E4F534A) json=JSON.parse(new TextDecoder().decode(new Uint8Array(buf,start,len)));
+    else if(type===0x004E4942) bin=new Uint8Array(buf,start,len);
+    off=start+len;
+  }
+  if(!json) throw new Error('no JSON chunk');
+  const bdv=bin?new DataView(bin.buffer,bin.byteOffset,bin.byteLength):null;
+  const read=(o,ct)=>{const TA=COMP[ct];return bdv['get'+(TA===Float32Array?'Float32':TA===Uint32Array?'Uint32':TA===Uint16Array?'Uint16':TA===Int16Array?'Int16':TA===Uint8Array?'Uint8':'Int8')](o,true);};
+  function accessor(i,norm){
+    const a=json.accessors[i],n=NCOMP[a.type],TA=COMP[a.componentType];
+    const bv=json.bufferViews[a.bufferView],base=(bv.byteOffset||0)+(a.byteOffset||0);
+    const stride=bv.byteStride||n*TA.BYTES_PER_ELEMENT;
+    const nf=norm&&a.componentType!==5126?(a.componentType===5121?255:a.componentType===5123?65535:1):0;
+    const out=(a.componentType===5125||a.componentType===5123)&&!norm&&a.type==='SCALAR'?new TA(a.count):new Float32Array(a.count*n);
+    for(let e=0;e<a.count;e++){const p=base+e*stride;for(let c=0;c<n;c++){let v=read(p+c*TA.BYTES_PER_ELEMENT,a.componentType);if(nf)v/=nf;out[e*n+c]=v;}}
+    return{array:out,itemSize:n};
+  }
+  const matCache=new Map();
+  function material(i,hasColor){
+    const key=i+':'+hasColor;if(matCache.has(key))return matCache.get(key);
+    const src=i!=null&&json.materials?json.materials[i]:null;
+    const f=src?.pbrMetallicRoughness?.baseColorFactor;
+    const m=new THREE.MeshPhongMaterial({color:f?new THREE.Color(f[0],f[1],f[2]):0xffffff,
+      vertexColors:hasColor,flatShading:true,shininess:0,specular:0,
+      side:src?.doubleSided?THREE.DoubleSide:THREE.FrontSide});
+    matCache.set(key,m);return m;
+  }
+  function primitive(p){
+    const g=new THREE.BufferGeometry();
+    const pos=accessor(p.attributes.POSITION);
+    g.setAttribute('position',new THREE.BufferAttribute(pos.array,3));
+    const hasColor=p.attributes.COLOR_0!=null;
+    if(hasColor){
+      const c=accessor(p.attributes.COLOR_0,true);
+      if(c.itemSize===4){const rgb=new Float32Array(c.array.length/4*3);for(let i=0,j=0;i<c.array.length;i+=4,j+=3){rgb[j]=c.array[i];rgb[j+1]=c.array[i+1];rgb[j+2]=c.array[i+2];}g.setAttribute('color',new THREE.BufferAttribute(rgb,3));}
+      else g.setAttribute('color',new THREE.BufferAttribute(c.array,3));
+    }
+    if(p.indices!=null){const idx=accessor(p.indices);g.setIndex(new THREE.BufferAttribute(idx.array instanceof Float32Array?new Uint32Array(idx.array):idx.array,1));}
+    if(p.attributes.NORMAL!=null){const n=accessor(p.attributes.NORMAL);g.setAttribute('normal',new THREE.BufferAttribute(n.array,3));}else g.computeVertexNormals();
+    return new THREE.Mesh(g,material(p.material,hasColor));
+  }
+  function node(i){
+    const n=json.nodes[i];let obj;
+    if(n.mesh!=null){const prims=json.meshes[n.mesh].primitives.map(primitive);obj=prims.length===1?prims[0]:(()=>{const g=new THREE.Group();prims.forEach(p=>g.add(p));return g;})();}
+    else obj=new THREE.Group();
+    if(n.name)obj.name=n.name;
+    if(n.matrix)obj.applyMatrix4(new THREE.Matrix4().fromArray(n.matrix));
+    else{if(n.translation)obj.position.fromArray(n.translation);if(n.rotation)obj.quaternion.fromArray(n.rotation);if(n.scale)obj.scale.fromArray(n.scale);}
+    (n.children||[]).forEach(c=>obj.add(node(c)));return obj;
+  }
+  const root=new THREE.Group();
+  const sc=json.scenes?.[json.scene??0];
+  (sc?.nodes??json.nodes.map((_,i)=>i)).forEach(i=>root.add(node(i)));
+  return root;
+}
+async function loadGLB(url,headers){
+  let res;
+  try{res=await fetch(url,headers?{headers}:undefined);}
+  catch(e){throw new Error('blocked(CORS/network)');}
+  if(!res.ok)throw new Error('HTTP '+res.status+(res.status===403?' — not licensed':res.status===404?' — not found':''));
+  return parseGLB(await res.arrayBuffer());
+}
+
+/* ============================================================
+   MODEL STORE
+   ============================================================ */
+const models={};
+let proOn=false, proToken='', proLoadReport='';
+let assetOk=0, assetTotal=Object.keys(FREE_ASSETS).length;
+
+function fallback(kind){
+  const m=flatMat;const g=new THREE.Group();let o;
+  switch(kind){
+    case 'water':o=new THREE.Mesh(new THREE.CircleGeometry(4,18),m('#2f6f86'));o.rotation.x=-Math.PI/2;break;
+    case 'pine':case 'young':case 'oak':{
+      const h=kind==='pine'?9:kind==='oak'?7:3;
+      const t=new THREE.Mesh(new THREE.CylinderGeometry(.18,.28,h*.35,6),m('#5d4430'));t.position.y=h*.175;
+      const c=new THREE.Mesh(new THREE.ConeGeometry(kind==='oak'?2.2:1.6,h*.8,7),m(kind==='oak'?'#5f9a4b':'#2f4f2e'));c.position.y=h*.55;
+      g.add(t,c);return g;}
+    case 'flower':{const s=new THREE.Mesh(new THREE.CylinderGeometry(.02,.02,.3,4),m('#6f8f3c'));s.position.y=.15;const b=new THREE.Mesh(new THREE.SphereGeometry(.09,6,5),m('#f0c05a'));b.position.y=.34;g.add(s,b);return g;}
+    case 'reed':o=new THREE.Mesh(new THREE.CylinderGeometry(.04,.05,1.2,5),m('#6f8f3c'));o.position.y=.6;break;
+    case 'lily':o=new THREE.Mesh(new THREE.CircleGeometry(.3,7),m('#4c8140'));o.rotation.x=-Math.PI/2;break;
+    case 'log':o=new THREE.Mesh(new THREE.CylinderGeometry(.35,.35,3,7),m('#75563b'));o.rotation.z=Math.PI/2;o.position.y=.35;break;
+    case 'boulder':o=new THREE.Mesh(new THREE.DodecahedronGeometry(1.1),m('#87847c'));o.position.y=.55;break;
+    case 'rockM':o=new THREE.Mesh(new THREE.DodecahedronGeometry(.5),m('#a3a099'));o.position.y=.25;break;
+    case 'rockS':o=new THREE.Mesh(new THREE.DodecahedronGeometry(.2),m('#bcb9b1'));o.position.y=.1;break;
+    default:o=new THREE.Mesh(new THREE.BoxGeometry(1,.3,1),m('#5d4430'));o.position.y=.15;
+  }
+  g.add(o);return g;
+}
+const spawn=(k,x,z,yaw=0,y=0)=>{const o=models[k].clone(true);o.position.set(x,y,z);o.rotation.y=yaw;scene.add(o);return o;};
+
+async function fetchModels(){
+  const jobs=Object.entries(FREE_ASSETS).map(([k,id])=>
+    loadGLB(CDN+id+'.glb').then(o=>{models[k]=o;assetOk++;}).catch(()=>{models[k]=fallback(k);})
+  );
+  await Promise.all(jobs);
+  proLoadReport=`${assetOk}/${assetTotal} free Polyfork assets loaded`;
+}
+function proURL(id){const t=proToken.trim();return t?`https://polyfork.dev/c/${t}/${id}.glb`:CDN+id+'.glb';}
+async function loadProAssets(){
+  const log=$('proLog'); log.innerHTML='';
+  proStatus('Requesting Pro files…',null);
+  const jobs=Object.entries(PRO_ASSETS).map(([k,id])=>
+    loadGLB(proURL(id)).then(o=>{models[k]=o;proLine(id,true,'');return k;}).catch(e=>{proLine(id,false,e.message);return null;})
+  );
+  const got=(await Promise.all(jobs)).filter(Boolean);
+  if(models.proRabbit&&models.proFox){
+    proOn=true; scatterPro.done=false; scatterPro();
+    proStatus(`${got.length}/8 loaded — rigged rabbit and fox active. Restarting.`,true);
+    $('recap').classList.remove('on'); resetSim(); buildTabs(); setPaused(false);
+  } else {
+    proStatus(got.length?`${got.length}/8 loaded but rabbit or fox missing.`:`Nothing loaded. See per-asset lines above.`,false);
+  }
+}
+function proLine(id,ok,why){
+  const d=document.createElement('div');d.className='proline '+(ok?'ok':'no');
+  d.textContent=(ok?'✓ ':'✗ ')+id+(why?' — '+why:'');$('proLog').appendChild(d);
+}
+let _proStatusMsg=null;
+function proStatus(msg,ok){
+  _proStatusMsg={msg,ok};
+  const s=$('proStatus');if(!s)return;
+  s.textContent=msg;s.className='prostatus'+(ok===true?' ok':ok===false?' no':'');
+}
+function proStatusReplay(){
+  if(_proStatusMsg){const s=$('proStatus');if(s){s.textContent=_proStatusMsg.msg;s.className='prostatus'+(_proStatusMsg.ok===true?' ok':_proStatusMsg.ok===false?' no':'');}}
+}
+function scatterPro(){
+  if(scatterPro.done)return;scatterPro.done=true;
+  for(const [k,n,r] of [['maple',5,1.3],['birch',5,1.1],['bush',14,0],['fern',12,0],['stump',6,0],['toadstool',10,0]]){
+    if(!models[k])continue;
+    for(let i=0;i<n;i++){const p=landPoint(r?2.5:1.4);if(r>0)props.push({x:p.x,z:p.z,r});spawn(k,p.x,p.z,rnd(0,6.3));}
+  }
+}
+function rabbitMesh(fur){
+  const g=new THREE.Group();
+  const body=new THREE.MeshPhongMaterial({color:fur,flatShading:true,shininess:0,specular:0});
+  const pale=flatMat('#e0d2b4'),dark=flatMat('#3a2a1e');
+  const B=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);g.add(o);return o;};
+  B(.17,.15,.25,body,0,.13,0);const head=B(.13,.13,.13,body,0,.23,.15);
+  B(.032,.13,.02,body,-.038,.35,.15);B(.032,.13,.02,body,.038,.35,.15);
+  B(.07,.07,.07,pale,0,.17,-.15);B(.03,.03,.02,dark,-.04,.25,.215);B(.03,.03,.02,dark,.04,.25,.215);
+  g.userData.head=head;return g;
+}
+function foxMesh(){
+  const g=new THREE.Group();
+  const coat=flatMat('#c94f3d'),pale=flatMat('#e0d2b4'),dark=flatMat('#110d0a');
+  const B=(w,h,d,m,x,y,z)=>{const o=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),m);o.position.set(x,y,z);g.add(o);return o;};
+  B(.24,.22,.52,coat,0,.42,0);B(.2,.06,.5,pale,0,.32,0);B(.18,.17,.18,coat,0,.53,.32);
+  B(.09,.09,.14,dark,0,.49,.45);B(.05,.1,.02,coat,-.06,.64,.3);B(.05,.1,.02,coat,.06,.64,.3);
+  B(.13,.13,.3,coat,0,.44,-.36);B(.11,.11,.1,pale,0,.44,-.53);
+  for(const [x,z] of [[-.09,.19],[.09,.19],[-.09,-.19],[.09,-.19]])B(.06,.32,.06,dark,x,.16,z);
+  return g;
+}
+function makeProRabbit(tint){
+  const g=models.proRabbit.clone(true);
+  g.traverse(n=>{if(n.isMesh){n.material=n.material.clone();n.material.color.multiply(tint);}});
+  g.userData.rig={legs:RIG.rabbit.legs.map(n=>g.getObjectByName(n)).filter(Boolean),ears:RIG.rabbit.ears.map(n=>g.getObjectByName(n)).filter(Boolean)};
+  return g;
+}
+function makeProFox(){
+  const g=models.proFox.clone(true);
+  g.userData.rig={legs:RIG.fox.legs.map(n=>g.getObjectByName(n)).filter(Boolean),tail:RIG.fox.tail.map(n=>g.getObjectByName(n)).filter(Boolean)};
+  return g;
+}
+
+/* ============================================================
+   SCENE
+   ============================================================ */
+let scene,camera,renderer,ringGroup=null;
+const props=[];
+let camA=0.85,camB=0.62,camR=44;
+
+function initScene(){
+  scene=new THREE.Scene();scene.background=new THREE.Color('#0d1416');scene.fog=new THREE.Fog('#0d1416',60,110);
+  camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.1,400);
+  renderer=new THREE.WebGLRenderer({antialias:true});
+  renderer.setPixelRatio(Math.min(devicePixelRatio,2));renderer.setSize(innerWidth,innerHeight);
+  document.getElementById('view').appendChild(renderer.domElement);
+  addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);sizeCharts();});
+  scene.add(new THREE.HemisphereLight('#9fd8dd','#25402c',.85));
+  const sun=new THREE.DirectionalLight('#f4ece0',.85);sun.position.set(-28,42,18);scene.add(sun);
+  const g=new THREE.Mesh(new THREE.PlaneGeometry(HALF*2+8,HALF*2+8),flatMat('#3d6b34'));g.rotation.x=-Math.PI/2;scene.add(g);
+  // orbit — scoped to the canvas itself so mobile sheet scroll/tap doesn't fight it
+  const el=renderer.domElement;let drag=false,px=0,py=0;
+  const dn=e=>{drag=true;px=e.clientX??e.touches?.[0].clientX;py=e.clientY??e.touches?.[0].clientY;};
+  const mv=e=>{if(!drag)return;const x=e.clientX??e.touches?.[0].clientX,y=e.clientY??e.touches?.[0].clientY;camA-=(x-px)*.005;camB=clamp(camB-(y-py)*.004,.12,1.45);px=x;py=y;if(e.touches)e.preventDefault();};
+  const up=()=>drag=false;
+  el.addEventListener('mousedown',dn);el.addEventListener('mousemove',mv);el.addEventListener('mouseup',up);el.addEventListener('mouseleave',up);
+  el.addEventListener('touchstart',dn,{passive:true});
+  el.addEventListener('touchmove',mv,{passive:false});
+  el.addEventListener('touchend',up);el.addEventListener('touchcancel',up);
+  el.addEventListener('wheel',e=>{camR=clamp(camR+e.deltaY*.04,12,110);e.preventDefault();},{passive:false});
+}
+function placeCamera(){
+  camera.position.set(Math.sin(camA)*Math.cos(camB)*camR,Math.sin(camB)*camR+2,Math.cos(camA)*Math.cos(camB)*camR);
+  camera.lookAt(0,1,0);
+}
+
+/* ---- world ---- */
+const LAKES=[
+  {x:-15,z:-11,r:0},{x:-10,z:-8,r:.7},
+  {x:15,z:12,r:.35},{x:17,z:-13,r:1.1},{x:-16,z:13,r:.5}
+].map(b=>({...b,a:4.0,b2:3.4}));
+const SHORE=[];
+
+function inWater(x,z,pad=0){
+  for(const L of LAKES){const c=Math.cos(-L.r),s=Math.sin(-L.r),dx=x-L.x,dz=z-L.z,lx=dx*c-dz*s,lz=dx*s+dz*c;if((lx*lx)/((L.a+pad)**2)+(lz*lz)/((L.b2+pad)**2)<=1)return true;}return false;
+}
+function buildShore(){
+  SHORE.length=0;
+  for(const L of LAKES)for(let i=0;i<14;i++){const t=i/14*Math.PI*2,lx=Math.cos(t)*(L.a+.9),lz=Math.sin(t)*(L.b2+.9),c=Math.cos(L.r),s=Math.sin(L.r),x=L.x+lx*c-lz*s,z=L.z+lx*s+lz*c;if(Math.abs(x)<HALF&&Math.abs(z)<HALF&&!inWater(x,z,.15))SHORE.push({x,z});}
+}
+function landPoint(minEdge=1.6){
+  for(let i=0;i<80;i++){
+    const x=rnd(-HALF+1,HALF-1),z=rnd(-HALF+1,HALF-1);
+    if(inWater(x,z,minEdge))continue;let ok=true;
+    for(const p of props){if((p.x-x)**2+(p.z-z)**2<p.r*p.r){ok=false;break;}}
+    if(ok)return{x,z};
+  }return{x:rnd(-8,8),z:rnd(-8,8)};
+}
+function waterTarget(x,z,range){
+  let best=null,bd=range*range;
+  for(const L of LAKES){
+    const c=Math.cos(-L.r),s=Math.sin(-L.r),dx=x-L.x,dz=z-L.z;let lx=dx*c-dz*s,lz=dx*s+dz*c;
+    const k=Math.hypot(lx/L.a,lz/L.b2)||1e-6;lx=lx/k*1.14;lz=lz/k*1.14;
+    const cc=Math.cos(L.r),ss=Math.sin(L.r),wx=L.x+lx*cc-lz*ss,wz=L.z+lx*ss+lz*cc;
+    const d=(wx-x)**2+(wz-z)**2;if(d<bd){bd=d;best={x:wx,z:wz};}
+  }return best;
+}
+function buildWorld(){
+  buildShore();props.length=0;
+  for(let i=0;i<7;i++){const p=landPoint(4);spawn('grass',p.x,p.z,rnd(0,6.3),-.42);}
+  for(let i=0;i<5;i++){const p=landPoint(2);spawn('dirt',p.x,p.z,rnd(0,6.3),-.16);}
+  for(const L of LAKES)spawn('water',L.x,L.z,L.r,.02);
+  for(const L of LAKES)for(let i=0;i<3;i++)spawn('lily',L.x+rnd(-2.4,2.4),L.z+rnd(-2,2),rnd(0,6.3),.06);
+  for(const s of SHORE)if(Math.random()<.55)spawn('reed',s.x+rnd(-.5,.5),s.z+rnd(-.5,.5),rnd(0,6.3));
+  for(const [k,n,r] of [['pine',13,1.1],['young',9,.7],['oak',7,1.3]])for(let i=0;i<n;i++){const p=landPoint(2.5);props.push({x:p.x,z:p.z,r});spawn(k,p.x,p.z,rnd(0,6.3));}
+  for(const [k,n,r] of [['boulder',5,1.2],['rockM',8,.6],['rockS',12,.25],['log',4,1.1]])for(let i=0;i<n;i++){const p=landPoint(2);if(r>.5)props.push({x:p.x,z:p.z,r});spawn(k,p.x,p.z,rnd(0,6.3));}
+  for(let i=0;i<28;i++){const p=landPoint(1.2);spawn('tuft',p.x,p.z,rnd(0,6.3));}
+}
+
+/* ============================================================
+   SIM
+   ============================================================ */
+
+function newGenes(){
+  return{sense:rnd(TUNE.senseMin,TUNE.senseMax),speed:rnd(TUNE.speedMin,TUNE.speedMax),
+    urge:rnd(TUNE.urgeMin,TUNE.urgeMax),gest:rnd(TUNE.gestMin,TUNE.gestMax),des:rnd(.2,.8)};
+}
+function inherit(a,b){
+  const g={};
+  for(const k in RANGE){
+    g[k]=Math.random()<.5?a[k]:b[k];
+    if(Math.random()<TUNE.mutChance){const[lo,hi]=RANGE[k];g[k]=clamp(g[k]+rnd(-1,1)*(hi-lo)*TUNE.mutStep,lo,hi);}
+  }return g;
+}
+
+function makeRabbit(x,z,genes,gen,mature){
+  const male=Math.random()<.5,g=genes||newGenes();
+  const fur=male?new THREE.Color('#a5855e').lerp(new THREE.Color('#c94f3d'),g.des):new THREE.Color('#c2a479');
+  const tint=male?new THREE.Color(1,1,1).lerp(new THREE.Color(1.4,.5,.4),g.des):new THREE.Color(1,1,1);
+  const mesh=(proOn&&models.proRabbit)?makeProRabbit(tint):rabbitMesh(fur);
+  scene.add(mesh);
+  const r={mesh,male,g,gen:gen||1,x,z,vx:0,vz:0,dir:rnd(0,6.3),
+    hunger:rnd(0,.25),thirst:rnd(0,.25),
+    age:mature?rnd(TUNE.maturity,TUNE.maturity*2):0,mature:TUNE.maturity,
+    life:rnd(TUNE.lifeMin,TUNE.lifeMax),
+    pregnant:0,carry:null,cool:0,reject:[],scan:(Math.random()*6)|0,
+    target:null,tkind:null,flee:null,bob:Math.random()*6};
+  rabbits.push(r);return r;
+}
+function makeFox(x,z){
+  const mesh=(proOn&&models.proFox)?makeProFox():foxMesh();scene.add(mesh);
+  foxes.push({mesh,x,z,vx:0,vz:0,dir:rnd(0,6.3),hunger:rnd(.1,.4),age:0,
+    life:rnd(200,280),cool:20,gait:0,target:null,scan:(Math.random()*6)|0});
+}
+function makePlant(){
+  const p=landPoint(1.4),mesh=spawn('flower',p.x,p.z,rnd(0,6.3));
+  plants.push({x:p.x,z:p.z,mesh,alive:true,respawn:0});
+}
+function syncPlants(){
+  while(plants.length<TUNE.plants)makePlant();
+  while(plants.length>TUNE.plants){const p=plants.pop();scene.remove(p.mesh);}
+}
+
+function nearestPlant(x,z,r){let best=null,bd=r*r;for(const p of plants){if(!p.alive)continue;const d=(p.x-x)**2+(p.z-z)**2;if(d<bd){bd=d;best=p;}}return best;}
+function nearestFox(x,z,r){let best=null,bd=r*r;for(const f of foxes){const d=(f.x-x)**2+(f.z-z)**2;if(d<bd){bd=d;best=f;}}return best;}
+function nearestMate(me,r){
+  let best=null,bd=r*r;
+  for(const o of rabbits){
+    if(o===me||o.male===me.male||o.age<o.mature||o.pregnant>0||o.cool>0)continue;
+    if(me.male&&me.reject.some(e=>e.o===o&&e.t>simT))continue;
+    const d=(o.x-me.x)**2+(o.z-me.z)**2;if(d<bd){bd=d;best=o;}
+  }return best;
+}
+
+function step(dt){
+  simT+=dt;
+  for(const p of plants){if(!p.alive){p.respawn-=dt;if(p.respawn<=0){const q=landPoint(1.4);p.x=q.x;p.z=q.z;p.alive=true;p.mesh.position.set(q.x,0,q.z);p.mesh.rotation.y=rnd(0,6.3);p.mesh.visible=true;}}}
+
+  // rabbits
+  for(let i=rabbits.length-1;i>=0;i--){
+    const r=rabbits[i],g=r.g,grown=clamp(r.age/r.mature,.4,1),spd=g.speed*grown;
+    r.age+=dt;r.cool-=dt;
+    r.hunger+=dt*(TUNE.hungerRate+TUNE.speedCost*g.speed/2.5);
+    r.thirst+=dt*(TUNE.thirstRate+TUNE.speedCost*g.speed/2.5);
+    if(r.hunger>=1){kill(r,i,'hunger');continue;}
+    if(r.thirst>=1){kill(r,i,'thirst');continue;}
+    if(r.age>r.life){kill(r,i,'age');continue;}
+    if(r.pregnant>0){
+      r.pregnant-=dt;
+      if(r.pregnant<=0){
+        const n=g.gest<12?3:g.gest<19?2:1;
+        for(let k=0;k<n&&rabbits.length<TUNE.capRabbits;k++){
+          const kid=makeRabbit(r.x+rnd(-.6,.6),r.z+rnd(-.6,.6),inherit(g,r.carry),r.gen+1,false);
+          kid.mature=g.gest*1.35+TUNE.maturity*.54;
+          stats.born++;const ng=Math.max(stats.gen,kid.gen);if(ng>stats.gen){onNewGen(ng);}stats.gen=ng;
+        }
+        r.carry=null;r.cool=8;
+      }
+    }
+    if((r.scan=(r.scan+1)%6)===0){
+      r.flee=foxes.length?nearestFox(r.x,r.z,g.sense*1.15):null;
+      if(!r.flee){
+        const ready=r.age>=r.mature&&r.pregnant<=0&&r.cool<=0;
+        const drives=[{k:'water',u:r.thirst},{k:'food',u:r.hunger},{k:'mate',u:ready?g.urge:-1}].sort((a,b)=>b.u-a.u);
+        r.target=null;r.tkind=null;
+        for(const d of drives){if(d.u<0)continue;const t=d.k==='water'?waterTarget(r.x,r.z,g.sense):d.k==='food'?nearestPlant(r.x,r.z,g.sense):nearestMate(r,g.sense);if(t){r.target=t;r.tkind=d.k;break;}}
+      }
+    }
+    let tx=null,tz=null,rush=1;
+    if(r.flee){tx=r.x*2-r.flee.x;tz=r.z*2-r.flee.z;rush=1.35;}
+    else if(r.target){if(r.tkind==='mate'&&(r.target.pregnant>0||r.target.cool>0))r.target=null;if(r.target){tx=r.target.x;tz=r.target.z;}}
+    if(tx===null){if(Math.random()<dt*.7)r.dir+=rnd(-1.2,1.2);tx=r.x+Math.sin(r.dir)*3;tz=r.z+Math.cos(r.dir)*3;}
+    move(r,tx,tz,spd*rush,dt);
+    if(r.target&&!r.flee){
+      const d2=(r.target.x-r.x)**2+(r.target.z-r.z)**2;
+      if(r.tkind==='water'&&d2<TUNE.drinkRadius**2){r.thirst=0;r.target=null;}
+      else if(r.tkind==='food'&&d2<TUNE.eatRadius**2){if(r.target.alive){r.target.alive=false;r.target.mesh.visible=false;r.target.respawn=rnd(TUNE.regrowMin,TUNE.regrowMax);r.hunger=0;}r.target=null;}
+      else if(r.tkind==='mate'&&d2<.36){
+        const o=r.target;
+        if(r.male){if(Math.random()<.25+g.des*.7)conceive(o,r);else{r.reject.push({o,t:simT+9});if(r.reject.length>6)r.reject.shift();}}
+        else if(o.male){if(Math.random()<.25+o.g.des*.7)conceive(r,o);}
+        r.target=null;r.cool=1.2;
+      }
+    }
+    r.bob+=dt*(Math.hypot(r.vx,r.vz)>.15?spd*4.2:0);
+    const s=grown;r.mesh.scale.setScalar(s);
+    const rig=r.mesh.userData.rig;
+    if(rig&&!REDUCED){const a=Math.sin(r.bob);for(const l of rig.legs)l.rotation.x=a*.45;for(const e of rig.ears)e.rotation.x=-Math.abs(a)*.22;r.mesh.position.set(r.x,Math.abs(a)*.045*s,r.z);}
+    else r.mesh.position.set(r.x,REDUCED?0:Math.abs(Math.sin(r.bob))*.09*s,r.z);
+    if(Math.hypot(r.vx,r.vz)>.15)r.mesh.rotation.y=Math.atan2(r.vx,r.vz);
+  }
+
+  // foxes
+  for(let i=foxes.length-1;i>=0;i--){
+    const f=foxes[i];f.age+=dt;f.cool-=dt;f.hunger+=dt*TUNE.foxHunger;
+    if(f.hunger>=1||f.age>f.life){scene.remove(f.mesh);foxes.splice(i,1);continue;}
+    if((f.scan=(f.scan+1)%6)===0){let best=null,bd=TUNE.foxSense**2;for(const r of rabbits){const d=(r.x-f.x)**2+(r.z-f.z)**2;if(d<bd){bd=d;best=r;}}f.target=best;}
+    let tx,tz;
+    if(f.target&&f.hunger>.15){tx=f.target.x;tz=f.target.z;}
+    else{if(Math.random()<dt*.6)f.dir+=rnd(-1,1);tx=f.x+Math.sin(f.dir)*4;tz=f.z+Math.cos(f.dir)*4;}
+    move(f,tx,tz,TUNE.foxSpeed,dt);
+    if(f.target){const j=rabbits.indexOf(f.target);if(j<0)f.target=null;else if((f.target.x-f.x)**2+(f.target.z-f.z)**2<.45){kill(f.target,j,'eaten');f.hunger=clamp(f.hunger-TUNE.foxGain,0,1);f.target=null;}}
+    if(f.hunger<TUNE.foxBreed&&f.age>34&&f.cool<=0&&foxes.length<TUNE.capFoxes){makeFox(f.x+rnd(-1,1),f.z+rnd(-1,1));f.cool=30;f.hunger+=TUNE.foxBreed;}
+    f.mesh.position.set(f.x,0,f.z);
+    const frig=f.mesh.userData.rig;
+    if(frig&&!REDUCED){f.gait+=dt*TUNE.foxSpeed*3.4;const a=Math.sin(f.gait);frig.legs.forEach((l,i)=>l.rotation.x=a*(i<2?.5:-.5));for(const t of frig.tail)t.rotation.x=a*.18;}
+    if(Math.hypot(f.vx,f.vz)>.2)f.mesh.rotation.y=Math.atan2(f.vx,f.vz);
+  }
+}
+
+function conceive(female,male){if(female.pregnant>0||female.cool>0)return;female.pregnant=female.g.gest;female.carry=male.g;female.cool=female.g.gest+5;male.cool=3;}
+function kill(r,i,cause){scene.remove(r.mesh);rabbits.splice(i,1);stats[cause]++;if(cause==='thirst')_prevThirst++;}
+
+function move(c,tx,tz,spd,dt){
+  let dx=tx-c.x,dz=tz-c.z;const d=Math.hypot(dx,dz)||1;dx/=d;dz/=d;
+  for(const p of props){const ox=c.x-p.x,oz=c.z-p.z,od=Math.hypot(ox,oz);if(od<p.r+1.1&&od>.01){dx+=ox/od*(p.r+1.1-od)*.9;dz+=oz/od*(p.r+1.1-od)*.9;}}
+  const n=Math.hypot(dx,dz)||1;
+  let nx=c.x+dx/n*spd*dt,nz=c.z+dz/n*spd*dt;
+  if(inWater(nx,nz,.25)||Math.abs(nx)>HALF||Math.abs(nz)>HALF){
+    c.dir+=rnd(1.8,4.4);nx=c.x+Math.sin(c.dir)*spd*dt;nz=c.z+Math.cos(c.dir)*spd*dt;
+    if(inWater(nx,nz,.25)||Math.abs(nx)>HALF||Math.abs(nz)>HALF)return;
+  }
+  c.vx=(nx-c.x)/dt;c.vz=(nz-c.z)/dt;c.x=nx;c.z=nz;
+}
+
+/* ============================================================
+   GENERATION TRACKING & OBJECTIVES
+   ============================================================ */
+function onNewGen(ng){
+  // consecutive-gen tracking (threshold: ≥25 rabbits or both populations if foxes)
+  const thresh=foxEverReleased?(rabbits.length>=25&&foxes.length>0):rabbits.length>=25;
+  if(thresh) consecGens++;else consecGens=0;
+  // thirst window (3 gens, no thirst deaths)
+  _thirstWindow.push(_prevThirst);_prevThirst=0;
+  if(_thirstWindow.length>3)_thirstWindow.shift();
+  if(_thirstWindow.length===3&&_thirstWindow.every(v=>v===0))_noThirst3Gen=true;
+  // speed rise after fox
+  if(foxEverReleased&&_speedAtFoxRelease>0&&history.length){
+    const cur=history[history.length-1].speed||_startSpeed;
+    _speedRisePct=(cur-_speedAtFoxRelease)/_speedAtFoxRelease*100;
+  }
+  checkSideObjectives();
+}
+
+function checkSideObjectives(){
+  if(!gameMode)return;
+  const lvl=LEVELS[level-1];
+  for(const s of lvl.sides){if(!s.done&&s.check()){s.done=true;addEP(30,'side objective');renderObjectives();}}
+}
+
+function tickObjectives(){
+  if(!gameMode)return;
+  const lvl=LEVELS[level-1];
+  if(!levelDone&&lvl.primary.check()){
+    levelDone=true;addEP(lvl.epBonus,'primary objective');
+    renderObjectives();
+  }
+  renderObjectives();
+}
+
+function advanceLevel(){
+  if(level>=LEVELS.length){levelDone=false;return;}
+  level++;levelDone=false;consecGens=0;
+  // reset side-objective done flags on new level
+  for(const s of LEVELS[level-1].sides)s.done=false;
+  buildTabs();renderObjectives();saveState();
+}
+
+/* ============================================================
+   EP ECONOMY
+   ============================================================ */
+function computeCost(k,oldVal,newVal){
+  if(!gameMode)return 0;
+  const tier=KNOB_TIER[k]||'cosmetic';
+  if(tier==='free')return 0;
+  const range=getTuneRange(k);
+  const span=range[1]-range[0];if(span<=0)return 0;
+  const delta=Math.abs(newVal-oldVal);
+  switch(tier){
+    case 'immediate':return Math.round(COST.immediate.base*(delta/span)**2*100+2);
+    case 'structural':return Math.round(COST.structural.base*(delta/span)*80+2);
+    case 'terminal':return Math.round(COST.terminal.base*(delta/span)*60+COST.terminal.base*.5);
+    case 'cosmetic':return Math.round(COST.cosmetic.base*(delta/span)*30+1);
+    default:return 0;
+  }
+}
+function canAfford(cost){return !gameMode||ep>=cost;}
+function addEP(amt,reason){
+  if(!gameMode)return;
+  ep+=amt;epHistory.push({amt,reason,t:Math.floor(simT)});
+  if(epHistory.length>20)epHistory.shift();
+  $('epVal').textContent=ep;
+}
+function spendEP(cost,reason){
+  if(!gameMode||cost===0)return true;
+  if(ep<cost)return false;
+  ep-=cost;epHistory.push({amt:-cost,reason,t:Math.floor(simT)});
+  if(epHistory.length>20)epHistory.shift();
+  $('epVal').textContent=ep;
+  return true;
+}
+
+/* passive EP accrual — called every sample tick */
+function accrueEP(){
+  if(!gameMode)return;
+  // +1 per 10 rabbits per generation tick — calibrated to be slow enough to matter
+  // actual call: once per second, so we award fractional accrual
+  const rate=rabbits.length*0.04;
+  ep+=rate;$('epVal').textContent=Math.floor(ep);
+}
+
+function getTuneRange(k){
+  // return [min,max] for any TUNE key
+  const map={
+    hungerRate:[.004,.06],thirstRate:[.004,.06],speedCost:[0,.03],
+    drinkRadius:[.4,5],eatRadius:[.2,3],maturity:[8,60],lifeMin:[40,300],lifeMax:[60,400],
+    plants:[6,140],regrowMin:[1,40],regrowMax:[2,80],
+    mutChance:[0,.6],mutStep:[.01,.4],
+    senseMin:[2,15],senseMax:[3,15],speedMin:[.5,4],speedMax:[.8,4.2],
+    urgeMin:[.12,.95],urgeMax:[.15,.95],gestMin:[6,26],gestMax:[7,26],
+    capRabbits:[20,400],capFoxes:[4,120],
+    foxHunger:[.004,.06],foxSpeed:[1,6],foxSense:[3,25],foxGain:[.1,1],foxBreed:[.05,.6],foxStart:[1,20]
+  };
+  return map[k]||[0,1];
+}
+
+/* ============================================================
+   SAMPLE & RENDER
+   ============================================================ */
+function sample(){
+  const n=rabbits.length;
+  const avg={sense:0,speed:0,urge:0,gest:0,des:0};let males=0;
+  for(const r of rabbits){avg.sense+=r.g.sense;avg.speed+=r.g.speed;avg.urge+=r.g.urge;avg.gest+=r.g.gest;if(r.male){avg.des+=r.g.des;males++;}}
+  if(n){for(const k of['sense','speed','urge','gest'])avg[k]/=n;}avg.des=males?avg.des/males:0;
+  const row={t:simT,pop:n,fox:foxes.length,...avg};
+  history.push(row);if(history.length>420)history.shift();
+  stats.peak=Math.max(stats.peak||0,n);stats.peakFox=Math.max(stats.peakFox||0,foxes.length);
+  if(n)lastLiving=row;if(n&&!runStart)runStart=row;
+  accrueEP(); tickObjectives(); saveState();
+}
+
+function paintHUD(){
+  $('nRab').textContent=rabbits.length;$('nFox').textContent=foxes.length;$('gen').textContent=stats.gen;
+  $('dBorn').textContent=stats.born;$('dThirst').textContent=stats.thirst;
+  $('dHunger').textContent=stats.hunger;$('dEaten').textContent=stats.eaten;
+  $('dAge').textContent=stats.age;$('clock').textContent=Math.floor(simT)+'s';
+  if(gameMode)$('epVal').textContent=Math.floor(ep);
+  const last=history[history.length-1];
+  if(last){$('vSense').textContent=last.sense.toFixed(1)+' m';$('vSpeed').textContent=last.speed.toFixed(2)+' m/s';$('vUrge').textContent=last.urge.toFixed(2);$('vGest').textContent=last.gest.toFixed(1)+' s';$('vDes').textContent=last.des.toFixed(2);}
+  popChart();geneCharts();
+
+  // mobile mirrors — same data, compact bar + sheet
+  $('mNRab').textContent=rabbits.length;$('mNFox').textContent=foxes.length;$('mGen').textContent=stats.gen;
+  $('mBorn').textContent=stats.born;$('mThirst').textContent=stats.thirst;
+  $('mHunger').textContent=stats.hunger;$('mEaten').textContent=stats.eaten;
+  $('mAge').textContent=stats.age;$('mClock').textContent=Math.floor(simT)+'s';
+  if(gameMode)$('mEpVal').textContent=Math.floor(ep);
+  if(last){$('mVSense').textContent=last.sense.toFixed(1)+' m';$('mVSpeed').textContent=last.speed.toFixed(2)+' m/s';$('mVUrge').textContent=last.urge.toFixed(2);$('mVGest').textContent=last.gest.toFixed(1)+' s';$('mVDes').textContent=last.des.toFixed(2);}
+  mPopChart();mGeneCharts();
+}
+
+function ctxOf(c){
+  const dpr=Math.min(devicePixelRatio,2);
+  if(c.width!==c.clientWidth*dpr){c.width=c.clientWidth*dpr;c.height=c.clientHeight*dpr;}
+  const x=c.getContext('2d');x.setTransform(dpr,0,0,dpr,0,0);x.clearRect(0,0,c.clientWidth,c.clientHeight);return x;
+}
+function popChart(){
+  const c=$('popChart'),x=ctxOf(c),W=c.clientWidth,H=c.clientHeight;
+  if(history.length<2)return;
+  const max=Math.max(20,...history.map(h=>h.pop));
+  const line=(key,col,fill)=>{
+    x.beginPath();history.forEach((h,i)=>{const px=i/(history.length-1)*W,py=H-(h[key]/max)*(H-4)-2;i?x.lineTo(px,py):x.moveTo(px,py);});
+    x.strokeStyle=col;x.lineWidth=1.4;x.stroke();
+    if(fill){x.lineTo(W,H);x.lineTo(0,H);x.closePath();x.fillStyle=fill;x.fill();}
+  };
+  line('pop','#c2a479','rgba(194,164,121,.1)');
+  if(history.some(h=>h.fox>0))line('fox','#c94f3d',null);
+}
+function geneCharts(){
+  document.querySelectorAll('#genes canvas').forEach(c=>{
+    const k=c.dataset.k,x=ctxOf(c),W=c.clientWidth,H=c.clientHeight;if(history.length<2)return;
+    const[lo,hi]=RANGE[k];x.beginPath();
+    history.forEach((h,i)=>{const px=i/(history.length-1)*W,py=H-clamp((h[k]-lo)/(hi-lo),0,1)*(H-5)-2.5;i?x.lineTo(px,py):x.moveTo(px,py);});
+    x.strokeStyle='#63b3c4';x.lineWidth=1.4;x.stroke();
+  });
+}
+function sizeCharts(){document.querySelectorAll('canvas').forEach(c=>c.width=0);}
+
+function mPopChart(){
+  const c=$('mPopChart');if(!c||c.offsetParent===null)return;
+  const x=ctxOf(c),W=c.clientWidth,H=c.clientHeight;if(history.length<2)return;
+  const max=Math.max(20,...history.map(h=>h.pop));
+  const line=(key,col,fill)=>{
+    x.beginPath();history.forEach((h,i)=>{const px=i/(history.length-1)*W,py=H-(h[key]/max)*(H-4)-2;i?x.lineTo(px,py):x.moveTo(px,py);});
+    x.strokeStyle=col;x.lineWidth=1.6;x.stroke();
+    if(fill){x.lineTo(W,H);x.lineTo(0,H);x.closePath();x.fillStyle=fill;x.fill();}
+  };
+  line('pop','#c2a479','rgba(194,164,121,.1)');
+  if(history.some(h=>h.fox>0))line('fox','#c94f3d',null);
+}
+function mGeneCharts(){
+  document.querySelectorAll('#mGeneBody canvas').forEach(c=>{
+    if(c.offsetParent===null)return;
+    const k=c.dataset.k,x=ctxOf(c),W=c.clientWidth,H=c.clientHeight;if(history.length<2)return;
+    const[lo,hi]=RANGE[k];x.beginPath();
+    history.forEach((h,i)=>{const px=i/(history.length-1)*W,py=H-clamp((h[k]-lo)/(hi-lo),0,1)*(H-5)-2.5;i?x.lineTo(px,py):x.moveTo(px,py);});
+    x.strokeStyle='#63b3c4';x.lineWidth=1.6;x.stroke();
+  });
+}
+
+/* ============================================================
+   RINGS
+   ============================================================ */
+function drawRings(){
+  if(ringGroup){scene.remove(ringGroup);ringGroup=null;}
+  if(!showRings)return;
+  ringGroup=new THREE.Group();
+  const mat=new THREE.LineBasicMaterial({color:'#63b3c4',transparent:true,opacity:.28});
+  const pts=[];for(let i=0;i<=32;i++){const t=i/32*Math.PI*2;pts.push(new THREE.Vector3(Math.cos(t),0,Math.sin(t)));}
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  for(const r of rabbits.slice(0,45)){const l=new THREE.Line(geo,mat);l.position.set(r.x,.05,r.z);l.scale.setScalar(r.g.sense);ringGroup.add(l);}
+  scene.add(ringGroup);
+}
+
+/* ============================================================
+   RECAP
+   ============================================================ */
+const DRIFT_KEYS=[['sense','Sensory range',v=>v.toFixed(1)+' m'],['speed','Speed',v=>v.toFixed(2)+' m/s'],['urge','Repro. urge',v=>v.toFixed(2)],['gest','Gestation',v=>v.toFixed(1)+' s'],['des','Desirability',v=>v.toFixed(2)]];
+function showRecap(){
+  recapShown=true;
+  const total=stats.thirst+stats.hunger+stats.eaten+stats.age;
+  const causes=[['thirst',stats.thirst],['hunger',stats.hunger],['predation',stats.eaten],['old age',stats.age]].sort((a,b)=>b[1]-a[1]);
+  const[top,topN]=causes[0];const share=total?Math.round(topN/total*100):0;
+  let title='The population is gone.',verdict='';
+  if(!total)verdict='Nothing had time to happen. The founding rabbits died before a single generation turned over.';
+  else if(top==='predation'){title='The foxes ate everything, then starved.';verdict=`Predation took ${share}% of all deaths. Lower fox speed or meal value to give coexistence a chance.`;}
+  else if(top==='thirst'){title='They died of thirst.';verdict=`Thirst took ${share}% of deaths — a search-budget failure. Raise "dehydrate in" or widen "reach to drink".`;}
+  else if(top==='hunger'){title='They starved.';verdict=`Hunger took ${share}% of deaths. Raise "plants in world" or widen "reach to eat" to test whether it's supply or movement.`;}
+  else{title='They lived out their lifespans.';verdict='Old age dominated — the world is too gentle for selection to bite. Tighten survival pressures.';}
+  $('recapTitle').textContent=title;$('recapVerdict').innerHTML=verdict;
+  $('recapTally').innerHTML=[
+    [Math.floor(simT)+'s','SURVIVED'],[stats.gen,'GENERATIONS'],[stats.peak||0,'PEAK RABBITS'],
+    [stats.born,'BORN'],[stats.eaten,'EATEN'],[stats.thirst+stats.hunger,'STARVED/DRIED']
+  ].map(([v,l])=>`<div><b>${v}</b><span>${l}</span></div>`).join('');
+  const d=$('recapDrift');
+  if(runStart&&lastLiving&&stats.gen>1){
+    d.innerHTML=DRIFT_KEYS.map(([k,label,fmt])=>{
+      const a=runStart[k]||0,b=(lastLiving[k]||0),delta=b-a,pct=a?Math.round(delta/a*100):0,cls=Math.abs(pct)<3?'':(pct>0?'up':'dn'),arrow=Math.abs(pct)<3?'—':(pct>0?'▲':'▼');
+      return`<div><span>${label}</span><i>${fmt(a)} → ${fmt(b)} <span class="${cls}">${arrow} ${pct>0?'+':''}${pct}%</span></i></div>`;
+    }).join('');
+  }else d.innerHTML='<div><span>Not enough generations for drift to be meaningful.</span></div>';
+  if(gameMode){d.innerHTML+=`<div style="margin-top:6px"><span>EP earned</span><i>${Math.round(ep)} total</i></div>`;}
+  $('recap').classList.add('on');
+}
+
+/* ============================================================
+   RUN CONTROL
+   ============================================================ */
+function resetSim(){
+  for(const r of rabbits)scene.remove(r.mesh);
+  for(const f of foxes)scene.remove(f.mesh);
+  for(const p of plants)scene.remove(p.mesh);
+  rabbits=[];foxes=[];plants=[];history=[];simT=0;
+  foxEverReleased=false;consecGens=0;lastGenAtCheck=0;
+  runStart=null;lastLiving=null;recapShown=false;
+  _noParamChanged=true;_metabolismChanged=false;_noThirst3Gen=false;
+  _thirstWindow=[];_prevThirst=0;
+  if(gameMode){_startSpeed=(TUNE.speedMin+TUNE.speedMax)/2;_speedAtFoxRelease=0;_speedRisePct=0;}
+  stats={born:0,thirst:0,hunger:0,eaten:0,age:0,gen:1,peak:0,peakFox:0};
+  $('recap').classList.remove('on');
+  syncPlants();
+  for(let i=0;i<26;i++){const p=landPoint(2);makeRabbit(p.x,p.z,null,1,true);}
+  if(gameMode){for(const s of LEVELS[level-1].sides)s.done=false;levelDone=false;}
+  renderObjectives();
+  // buildTabs() intentionally not called here — the caller (startRun/reset button)
+  // already rebuilds tabs once; calling it again mid-reset raced tap events against
+  // a second DOM wipe and caused intermittent "tab doesn't switch" on mobile.
+}
+function setPaused(v){
+  paused=v;
+  $('play').textContent=v?'PLAY':'PAUSE';$('play').classList.toggle('on',!v);
+  $('mPlay').textContent=v?'PLAY':'PAUSE';$('mPlay').classList.toggle('on',!v);
+}
+function startRun(gm,restore=false){
+  gameMode=gm;
+  if(!restore){level=1;ep=0;epHistory=[];clearSave();for(const lvl of LEVELS)for(const s of lvl.sides)s.done=false;Object.assign(TUNE,DEFAULTS);}
+  $('epWrap').style.display=gm?'':'none';
+  $('mEpWrap').style.display=gm?'':'none';
+  $('objPanel').classList.toggle('hidden',!gm);
+  $('mObjNav').style.display=gm?'':'none';
+  $('startMenu').classList.remove('on');
+  resetSim();buildTabs();setPaused(false);
+  loop();
+}
+
+/* ============================================================
+   UI — TABS & KNOBS
+   ============================================================ */
+const TAB_DEF={
+  env:{icon:'🌿',label:'Environment',
+    groups:[
+      {label:'Food supply',knobs:[
+        ['plants','Plants in world',6,140,1,v=>v,'How many wildflowers exist as food. Halving this roughly doubles search time before starvation.'],
+        ['regrowMin','Regrow delay min',1,40,1,v=>v+' s','Shortest wait before an eaten plant reappears elsewhere on the map.'],
+        ['regrowMax','Regrow delay max',2,80,1,v=>v+' s','Longest wait. Raise both to let a dense population strip the map.'],
+        ['eatRadius','Reach to eat',.2,3,.05,v=>v.toFixed(2)+' m','Arrival distance to consume a plant. Widen to diagnose movement stalls.'],
+      ]},
+      {label:'Water',knobs:[
+        ['drinkRadius','Reach to drink',.4,5,.1,v=>v.toFixed(2)+' m','Distance from the bank to count as drinking. Too small and rabbits hover without ever satisfying thirst.'],
+      ]}
+    ]},
+  rabbit:{icon:'🐇',label:'Rabbit',
+    groups:[
+      {label:'Metabolism',knobs:[
+        ['hungerRate','Starve in',.004,.06,.0005,v=>Math.round(1/v)+' s','Full starvation time at rest. This is the search budget — at 2 m/s, 40 s buys ~80 m of travel.'],
+        ['thirstRate','Dehydrate in',.004,.06,.0005,v=>Math.round(1/v)+' s','Full dehydration time. Ponds are fewer than plants, so this kills more often.'],
+        ['speedCost','Speed metabolic cost',0,.03,.001,v=>v.toFixed(3),'Extra hunger/thirst per unit of speed gene. Zero makes speed free — it will climb without limit.'],
+        ['maturity','Maturity age',8,60,1,v=>v+' s','Age at which a rabbit can breed. Below it they are smaller and slower.'],
+        ['lifeMin','Lifespan floor',40,300,5,v=>v+' s','Shortest natural lifespan. Old age should be rare; if it dominates, the world is too easy.'],
+        ['lifeMax','Lifespan ceiling',60,400,5,v=>v+' s','Longest natural lifespan. Longer lives slow generational turnover.'],
+      ]},
+      {label:'🧬 Starting genes',knobs:[
+        ['senseMin','Sense min',2,15,.5,v=>v+' m','Lower bound of founding sensory radius. Blind outside this distance.'],
+        ['senseMax','Sense max',3,15,.5,v=>v+' m','Upper bound. Wide spread gives selection more to work with.'],
+        ['speedMin','Speed min',.5,4,.1,v=>v.toFixed(1)+' m/s','Lower bound of founding speed.'],
+        ['speedMax','Speed max',.8,4.2,.1,v=>v.toFixed(1)+' m/s','Upper bound. Whether speed is worth its cost is what the sim answers.'],
+        ['urgeMin','Urge min',.12,.95,.01,v=>v.toFixed(2),'Lower bound of reproductive urge. High urge means mating outranks eating.'],
+        ['urgeMax','Urge max',.15,.95,.01,v=>v.toFixed(2),'Upper bound. Under predation this gene tends to climb.'],
+        ['gestMin','Gestation min',6,26,.5,v=>v+' s','Short gestation: 3 kits, underdeveloped. Long: 1 kit, robust.'],
+        ['gestMax','Gestation max',7,26,.5,v=>v+' s','Upper bound of gestation range.'],
+        ['mutChance','Mutation chance',0,.6,.01,v=>Math.round(v*100)+'%','Odds each inherited gene mutates. Zero freezes the gene pool.'],
+        ['mutStep','Mutation step',.01,.4,.01,v=>Math.round(v*100)+'% of range','Size of a mutation when it occurs.'],
+      ]}
+    ]},
+  fox:{icon:'🦊',label:'Fox',locked:()=>foxTabLocked(),
+    groups:[
+      {label:'Fox behaviour',knobs:[
+        ['foxStart','Starting fox count',1,20,1,v=>v,'How many foxes are released when you press RELEASE FOXES.'],
+        ['foxSpeed','Fox speed',1,6,.1,v=>v.toFixed(1)+' m/s','The primary coexistence lever. Drop below evolved rabbit speed to make the chase survivable.'],
+        ['foxSense','Fox sensory range',3,25,.5,v=>v+' m','How far a fox detects rabbits. Rabbits flee any fox within their own sensory radius.'],
+        ['foxHunger','Fox starves in',.004,.06,.001,v=>Math.round(1/v)+' s','Starvation time. Fox population crashes when prey runs out.'],
+        ['foxGain','Meal value',.1,1,.02,v=>v.toFixed(2),'Hunger restored per kill. Lower forces constant hunting.'],
+        ['foxBreed','Breeds below hunger',.05,.6,.01,v=>v.toFixed(2),'A well-fed fox breeds. Lower this to slow the boom-bust cycle.'],
+      ]}
+    ]},
+  settings:{icon:'⚙️',label:'Settings',
+    groups:[
+      {label:'Performance',knobs:[
+        ['capRabbits','Rabbit cap',20,400,10,v=>v,'Hard ceiling on rabbits. A performance guard, not an ecological one.'],
+        ['capFoxes','Fox cap',4,120,2,v=>v,'Hard ceiling on foxes.'],
+      ]},
+      {label:'Polyfork Pro',isCustom:'pro'}
+    ]}
+};
+
+/* pending cost state per knob */
+const pendingCost={};
+const knobOrigVal={};
+const knobInstances={};   // k -> [{inp,out,badge}] across desktop + mobile bodies
+function syncKnobPeers(k,exceptEl){
+  for(const inst of knobInstances[k]||[]){
+    if(inst.inp===exceptEl)continue;
+    inst.inp.value=TUNE[k];
+  }
+}
+
+function buildTabs(){
+  document.querySelectorAll('.tab').forEach(t=>{
+    const key=t.dataset.tab,def=TAB_DEF[key],locked=def.locked&&def.locked();
+    t.classList.toggle('locked',locked);t.querySelector('.lock-badge')?.remove();
+    if(locked&&gameMode){const b=document.createElement('span');b.className='lock-badge';b.textContent='🔒';t.appendChild(b);}
+  });
+  document.querySelectorAll('.mptab').forEach(t=>{
+    const key=t.dataset.tab,def=TAB_DEF[key],locked=def.locked&&def.locked();
+    t.classList.toggle('locked',locked);t.querySelector('.lock-badge')?.remove();
+    if(locked&&gameMode){const b=document.createElement('span');b.className='lock-badge';b.textContent='🔒';t.appendChild(b);}
+  });
+  const activeTab=document.querySelector('.tab.active')?.dataset.tab||'env';
+  renderTabBody(activeTab,$('tuneBody'));
+  const activeMTab=document.querySelector('.mptab.active')?.dataset.tab||'env';
+  renderTabBody(activeMTab,$('mTuneBody'));
+  renderObjectives();
+}
+
+function syncPeerText(k,v,fmt){
+  for(const inst of knobInstances[k]||[]) inst.out.textContent=fmt(v);
+}
+
+function renderTabBody(key,body){
+  if(!body)return;
+  // drop stale registrations for knobs that lived in this body before re-render
+  for(const k in knobInstances) knobInstances[k]=(knobInstances[k]||[]).filter(inst=>!body.contains(inst.inp));
+  const isDesktop=body.id==='tuneBody';
+  (isDesktop?document.querySelectorAll('.tab'):document.querySelectorAll('.mptab'))
+    .forEach(t=>t.classList.toggle('active',t.dataset.tab===key));
+  body.innerHTML='';
+  const def=TAB_DEF[key];if(!def)return;
+  if(def.locked&&def.locked()){
+    body.innerHTML=`<div style="font-family:var(--mono);font-size:10.5px;color:var(--dim);padding:14px 0">Unlocked at Level ${key==='fox'?4:'?'}. Complete current objectives to proceed.</div>`;
+    return;
+  }
+  for(const grp of def.groups){
+    if(grp.isCustom==='pro'){renderProSection(body);continue;}
+    const h=document.createElement('div');h.className='tgroup';h.textContent=grp.label;body.appendChild(h);
+    for(const[k,label,min,max,step,fmt,tip] of grp.knobs)buildKnob(body,k,label,min,max,step,fmt,tip);
+  }
+}
+
+function buildKnob(body,k,label,min,max,step,fmt,tip){
+  const unlocked=isUnlocked(k);
+  const d=document.createElement('div');d.className='knob'+(unlocked?'':' locked-knob');
+
+  const badge=document.createElement('span');badge.className='cost-badge';d.appendChild(badge);
+  const lab=document.createElement('div');lab.className='lab';
+  lab.innerHTML=`<span>${label}</span><i>${fmt(TUNE[k])}</i>`;d.appendChild(lab);
+  const inp=document.createElement('input');inp.type='range';inp.min=min;inp.max=max;inp.step=step;inp.value=TUNE[k];
+  inp.setAttribute('aria-label',label);
+  const cancel=document.createElement('div');cancel.className='cost-cancel';d.appendChild(inp);d.appendChild(cancel);
+  body.appendChild(d);
+
+  const out=lab.querySelector('i');
+  let baseVal=TUNE[k], timer=null;
+  (knobInstances[k]=knobInstances[k]||[]).push({inp,out,badge});
+
+  inp.addEventListener('mousedown',()=>{baseVal=TUNE[k];knobOrigVal[k]=TUNE[k];});
+  inp.addEventListener('touchstart',()=>{baseVal=TUNE[k];knobOrigVal[k]=TUNE[k];},{passive:true});
+
+  inp.addEventListener('input',()=>{
+    const v=+inp.value; TUNE[k]=v; out.textContent=fmt(v);
+    syncPeerText(k,v,fmt);
+    if(k==='plants')syncPlants();
+    // min/max guard
+    const pairs={senseMin:'senseMax',speedMin:'speedMax',urgeMin:'urgeMax',gestMin:'gestMax',lifeMin:'lifeMax',regrowMin:'regrowMax'};
+    for(const[lo,hi] of Object.entries(pairs)){if(TUNE[lo]>TUNE[hi]){if(k===lo)TUNE[hi]=TUNE[lo];else TUNE[lo]=TUNE[hi];refreshKnobs();}}
+    // mark param changed for objective tracking
+    _noParamChanged=false;
+    if(k==='hungerRate'||k==='thirstRate')_metabolismChanged=true;
+    if(!gameMode)return;
+    const cost=computeCost(k,baseVal,v);
+    const label2=cost>0?`−${cost} EP`:'free';
+    for(const inst of knobInstances[k]||[]){inst.badge.textContent=label2;inst.badge.classList.add('show');inst.badge.classList.toggle('cant',!canAfford(cost));}
+    pendingCost[k]={cost,base:baseVal};
+  });
+
+  inp.addEventListener('change',()=>{
+    if(!gameMode){pendingCost[k]=null;for(const inst of knobInstances[k]||[])inst.badge.classList.remove('show');return;}
+    const{cost,base}=pendingCost[k]||{cost:0,base:TUNE[k]};
+    if(cost===0){for(const inst of knobInstances[k]||[])inst.badge.classList.remove('show');cancel.textContent='';return;}
+    if(!canAfford(cost)){
+      // snap back — every instance of this knob, not just the one dragged
+      TUNE[k]=base;syncPeerText(k,base,fmt);
+      for(const inst of knobInstances[k]||[]){inst.inp.value=base;inst.badge.classList.remove('show');}
+      if(k==='plants')syncPlants();
+      cancel.textContent='';
+      const epEl=$('epVal');epEl.classList.add('ep-no');setTimeout(()=>epEl.classList.remove('ep-no'),500);
+      const mEpEl=$('mEpVal');if(mEpEl){mEpEl.classList.add('ep-no');setTimeout(()=>mEpEl.classList.remove('ep-no'),500);}
+      return;
+    }
+    // 2-second cancel window
+    cancel.textContent='Cancel (2s)';cancel.className='cost-cancel live';
+    if(timer)clearTimeout(timer);
+    timer=setTimeout(()=>{
+      if(!spendEP(cost,`${label} ${fmt(base)}→${fmt(TUNE[k])}`)){TUNE[k]=base;syncPeerText(k,base,fmt);for(const inst of knobInstances[k]||[])inst.inp.value=base;}
+      for(const inst of knobInstances[k]||[])inst.badge.classList.remove('show');
+      cancel.textContent='';cancel.className='cost-cancel';
+      pendingCost[k]=null;baseVal=TUNE[k];
+    },2000);
+    cancel.onclick=()=>{
+      clearTimeout(timer);TUNE[k]=base;syncPeerText(k,base,fmt);
+      for(const inst of knobInstances[k]||[]){inst.inp.value=base;inst.badge.classList.remove('show');}
+      if(k==='plants')syncPlants();
+      cancel.textContent='';cancel.className='cost-cancel';
+      pendingCost[k]=null;baseVal=TUNE[k];cancel.onclick=null;
+    };
+  });
+
+  if(tip){
+    const show=()=>showTip(d,`<b>${label}</b><br>${tip}`);
+    d.addEventListener('mouseenter',show);d.addEventListener('mouseleave',hideTip);
+    inp.addEventListener('focus',show);inp.addEventListener('blur',hideTip);
+  }
+}
+
+function refreshKnobs(){
+  for(const k in knobInstances) for(const inst of knobInstances[k]) inst.inp.value=TUNE[k];
+}
+
+function renderProSection(body){
+  const wrap=document.createElement('div');
+  const freeOk=assetOk===assetTotal;
+  wrap.innerHTML=`
+    <div class="tgroup">POLYFORK ASSETS</div>
+    <p class="hint" style="margin-bottom:6px">${proLoadReport||'Checking…'}</p>
+    <div class="tgroup" style="margin-top:8px">PRO ASSETS (rigged rabbit & fox)</div>
+    <p class="hint">Paste your CDN token from <a href="https://polyfork.dev/account" target="_blank">polyfork.dev/account</a>. Not stored beyond this session.</p>
+    <div class="field"><label>CDN TOKEN</label><input id="proToken" type="text" placeholder="/c/<token>/ path" autocomplete="off" spellcheck="false"></div>
+    <button id="proLoad" style="width:100%">LOAD PRO ASSETS</button>
+    <p class="prostatus" id="proStatus">–</p>
+    <div id="proLog"></div>`;
+  body.appendChild(wrap);
+  if(proToken)$('proToken').value=proToken;
+  proStatusReplay();
+  $('proLoad').onclick=()=>{proToken=$('proToken').value.trim();if(!proToken){proStatus('Enter a CDN token first.',false);return;}loadProAssets();};
+  const t=$('proToken');
+  t.addEventListener('focus',()=>showTip(t,'Your Polyfork /c/token/ CDN path. Find it at polyfork.dev/account. This is NOT the API key.'));
+  t.addEventListener('blur',hideTip);
+}
+
+/* ============================================================
+   OBJECTIVES PANEL
+   ============================================================ */
+function renderObjectives(){
+  if(!gameMode){$('objPanel').classList.add('hidden');return;}
+  $('objPanel').classList.remove('hidden');
+  renderObjectivesInto($('objBody'));
+  renderObjectivesInto($('mObjBody'));
+}
+function renderObjectivesInto(body){
+  if(!body)return;
+  body.innerHTML='';
+  const lvl=LEVELS[level-1];
+  const lh=document.createElement('div');lh.className='obj-level';lh.textContent=`LEVEL ${lvl.num} — ${lvl.name.toUpperCase()}`;body.appendChild(lh);
+  const desc=document.createElement('div');desc.style.cssText='font-size:11px;color:var(--dim);margin-bottom:8px;line-height:1.5';desc.textContent=lvl.desc;body.appendChild(desc);
+
+  // primary
+  const pr=document.createElement('div');pr.className='obj-item';
+  const prog=lvl.primary.progress();
+  const pct=Math.min(prog.val/prog.max*100,100);
+  pr.innerHTML=`<div class="obj-label">${lvl.primary.label}</div><div class="obj-bar"><div class="obj-fill" style="width:${pct}%"></div></div><div class="obj-val">${prog.val} / ${prog.max}${prog.label2?' — '+prog.label2:''}</div>`;
+  body.appendChild(pr);
+
+  // sides
+  for(const s of lvl.sides){
+    const el=document.createElement('div');el.className='obj-side'+(s.done?' done':'');
+    el.textContent=(s.done?'✓ ':'○ ')+s.label;body.appendChild(el);
+  }
+
+  // advance button
+  const adv=document.createElement('button');adv.className='obj-advance-btn'+(levelDone?' show':'');
+  adv.style.cssText='width:100%;margin-top:10px;display:'+(levelDone?'block':'none');
+  adv.textContent=level>=LEVELS.length?'COMPLETE':'ADVANCE TO LEVEL '+(level+1);
+  adv.onclick=()=>{if(level<LEVELS.length)advanceLevel();};body.appendChild(adv);
+}
+
+/* ============================================================
+   TOOLTIP
+   ============================================================ */
+const tipEl=$('tip');
+function showTip(anchor,html){
+  tipEl.innerHTML=html;tipEl.classList.add('on');
+  const a=anchor.getBoundingClientRect(),W=tipEl.offsetWidth||230,H=tipEl.offsetHeight||80;
+  let x=a.right+14;if(x+W>innerWidth-8)x=Math.max(8,a.left-W-14);
+  const y=clamp(a.top-4,8,innerHeight-H-8);
+  tipEl.style.left=x+'px';tipEl.style.top=y+'px';
+}
+function hideTip(){tipEl.classList.remove('on');}
+
+/* ============================================================
+   INIT UI EVENTS
+   ============================================================ */
+function initUI(){
+  // start menu
+  $('modeFreebtn').onclick=()=>startRun(false);
+  $('modeGamebtn').onclick=()=>startRun(true);
+  // about
+  const openAbout=e=>{e?.preventDefault();$('about').classList.add('on');};
+  const closeAbout=()=>$('about').classList.remove('on');
+  $('aboutBtn').onclick=openAbout;
+  $('mAboutBtn').onclick=openAbout;
+  $('aboutFromMenu').onclick=openAbout;
+  $('aboutClose').onclick=closeAbout;
+  // recap
+  $('again').onclick=()=>{$('recap').classList.remove('on');resetSim();buildTabs();setPaused(false);};
+  $('againMenu').onclick=()=>{$('recap').classList.remove('on');clearSave();$('startMenu').classList.add('on');setPaused(true);};
+  // play/speed
+  $('play').onclick=()=>setPaused(!paused);
+  document.querySelectorAll('.sp').forEach(b=>b.onclick=()=>{speed=+b.dataset.s;document.querySelectorAll('.sp').forEach(o=>o.classList.toggle('on',o===b));});
+  // actions
+  $('addRab').onclick=()=>{for(let i=0;i<20&&rabbits.length<TUNE.capRabbits;i++){const p=landPoint(2);makeRabbit(p.x,p.z,null,stats.gen,true);}};
+  $('addFox').onclick=()=>{
+    if(foxTabLocked()){showTip($('addFox'),'Foxes unlock at Level 4');return;}
+    foxEverReleased=true;if(_speedAtFoxRelease===0&&history.length)_speedAtFoxRelease=history[history.length-1].speed||_startSpeed;
+    for(let i=0;i<TUNE.foxStart&&foxes.length<TUNE.capFoxes;i++){const p=landPoint(3);makeFox(p.x,p.z);}
+  };
+  $('rings').onclick=e=>{showRings=!showRings;e.target.classList.toggle('on',showRings);drawRings();};
+  $('resetBtn').onclick=()=>{
+    if(gameMode&&!confirm('Reset the run? You will keep your level and EP but objectives reset.'))return;
+    resetSim();buildTabs();setPaused(false);
+  };
+  // tabs
+  document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+    if(t.classList.contains('locked'))return;
+    document.querySelectorAll('.tab').forEach(o=>o.classList.remove('active'));
+    t.classList.add('active');renderTabBody(t.dataset.tab,$('tuneBody'));
+  }));
+  document.querySelectorAll('.mptab').forEach(t=>t.addEventListener('click',()=>{
+    if(t.classList.contains('locked')){showTip(t,'Locked until the required level.');return;}
+    document.querySelectorAll('.mptab').forEach(o=>o.classList.remove('active'));
+    t.classList.add('active');renderTabBody(t.dataset.tab,$('mTuneBody'));
+  }));
+  // objectives toggle
+  $('objToggle').onclick=()=>{$('objPanel').classList.toggle('shut');};
+
+  // EP tooltip on hover (desktop) / tap (mobile)
+  function epTipHtml(){
+    const last5=epHistory.slice(-5).reverse().map(e=>`${e.amt>0?'+':''}${e.amt} EP — ${e.reason} (t=${e.t}s)`).join('<br>');
+    return `<b>Evo Points</b><br>${last5||'No transactions yet'}`;
+  }
+  const epW=$('epWrap');
+  if(epW){
+    epW.style.cursor='pointer';
+    epW.addEventListener('mouseenter',()=>showTip(epW,epTipHtml()));
+    epW.addEventListener('mouseleave',hideTip);
+  }
+  const mEpW=$('mEpWrap');
+  if(mEpW){
+    mEpW.addEventListener('click',e=>{e.stopPropagation();showTip(mEpW,epTipHtml());setTimeout(hideTip,3500);});
+  }
+
+  // position objectives panel below genes
+  function positionObjPanel(){
+    const g=$('genes');if(!g)return;
+    const gr=g.getBoundingClientRect();
+    $('objPanel').style.top=(gr.bottom+8)+'px';
+  }
+  positionObjPanel();addEventListener('resize',positionObjPanel);
+
+  initMobileUI();
+}
+
+/* ============================================================
+   MOBILE UI — bottom nav + single sliding sheet
+   ============================================================ */
+const SHEETS=['census','genes','panel','objectives','controls'];
+let mSheetOpen=null;
+
+function openSheet(name){
+  const already=mSheetOpen===name;
+  const willOpen=!already;
+  document.querySelectorAll('.mnav-btn').forEach(b=>b.classList.toggle('active',willOpen&&b.dataset.sheet===name));
+  for(const s of SHEETS) $('mSheet'+cap(s)).style.display=(s===name&&willOpen)?'':'none';
+  if(!willOpen){ $('mSheet').classList.remove('open'); mSheetOpen=null; }
+  else { $('mSheet').classList.add('open'); mSheetOpen=name; }
+}
+function cap(s){return s[0].toUpperCase()+s.slice(1);}
+
+function initMobileUI(){
+  document.querySelectorAll('.mnav-btn').forEach(b=>b.addEventListener('click',()=>openSheet(b.dataset.sheet)));
+
+  // default: census sheet content visible but sheet itself closed until tapped
+  $('mSheetCensus').style.display='';
+  for(const s of ['genes','panel','objectives','controls']) $('mSheet'+cap(s)).style.display='none';
+
+  $('mPlay').onclick=()=>setPaused(!paused);
+
+  document.querySelectorAll('.msp').forEach(b=>b.addEventListener('click',()=>{
+    speed=+b.dataset.s;
+    document.querySelectorAll('.msp').forEach(o=>o.classList.toggle('on',o===b));
+    document.querySelectorAll('.sp').forEach(o=>o.classList.toggle('on',+o.dataset.s===speed));
+  }));
+
+  $('mAddRab').onclick=()=>$('addRab').onclick();
+  $('mAddFox').onclick=()=>$('addFox').onclick();
+  $('mRings').onclick=()=>{
+    showRings=!showRings;
+    $('mRings').classList.toggle('on',showRings);$('rings').classList.toggle('on',showRings);
+    drawRings();
+  };
+  $('mResetBtn').onclick=()=>$('resetBtn').onclick();
+}
+
+/* ============================================================
+   MAIN LOOP
+   ============================================================ */
+let acc=0,lastT=performance.now(),lastSample=0,lastPaint=0,lastRings=0;
+function loop(){
+  requestAnimationFrame(loop);
+  const now=performance.now(),dt=Math.min((now-lastT)/1000,.1);lastT=now;
+  if(!paused){
+    acc+=dt*speed;let guard=0;
+    while(acc>=DT&&guard++<speed*4){step(DT);acc-=DT;}
+  }
+  if(rabbits.length===0&&foxes.length===0&&!recapShown&&simT>2){setPaused(true);sample();showRecap();}
+  if(now-lastSample>1000){sample();lastSample=now;}
+  if(now-lastPaint>250){paintHUD();lastPaint=now;}
+  if(showRings&&now-lastRings>150){drawRings();lastRings=now;}
+  placeCamera();renderer.render(scene,camera);
+}
+
+
+</script>
