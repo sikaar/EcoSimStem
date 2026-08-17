@@ -3,6 +3,8 @@ import { liveTuning } from '../../store/liveTuning';
 import { simRef } from '../../store/simRef';
 import { createSim, runUntilDay, step, type SimState } from '../../engine/sim';
 import { completeDraft } from '../../engine/day';
+import { createRng } from '../../engine/rng';
+import { drawDraftHand } from '../../config/draftCards';
 import { createFixedTimestepLoop } from '../../engine/loop';
 import { createScene } from '../../render/scene';
 import { createOrbitControls } from '../../render/orbit';
@@ -137,15 +139,18 @@ export function GameView({ seed, mode, resumeDay, onMainMenu }: GameViewProps) {
         if (store.paused) return;
         step(sim, dt);
 
-        // draft never auto-advances (§4.2) — without a real card-draft UI
-        // (Phase 2), this is the only way out of it once a run hits a
-        // draftIntervalDays boundary.
+        // draft never auto-advances (§4.2) — it waits for a card pick, and
+        // completeDraft is the only way out of the phase. The hand is drawn
+        // from a throwaway RNG seeded by (seed, day) rather than sim.rng:
+        // the simulation's own stream is what resume replays against, so
+        // drawing from it would make a drafted run diverge from its own
+        // replay (see draftCards.ts).
         if (sim.day.phase === 'draft') {
           if (store.draftDismissRequested) {
             sim.day = completeDraft(sim.day);
             useSimStore.setState({ draftDismissRequested: false });
           } else if (!store.draftPending) {
-            store.showDraftPending();
+            store.offerDraft(drawDraftHand(createRng(runSeed + sim.day.day * 7919)));
           }
         }
 

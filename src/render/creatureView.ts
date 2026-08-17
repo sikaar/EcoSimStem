@@ -78,6 +78,15 @@ export class EntityLayer<T extends PositionedEntity> {
       let inst = this.instances.get(entity.id);
       if (!inst) {
         const obj = this.factory();
+        // Placed and oriented BEFORE the gait is built. walk.mjs's walker()
+        // is handed a ground raycast query and plants feet against the
+        // world under the model, so building it while the clone still sits
+        // at the scene origin fits the rig to the wrong patch of world —
+        // every creature gets a gait measured at (0,0) no matter where it
+        // actually spawned.
+        obj.position.set(entity.x, this.yOffset, entity.z);
+        if (entity.dir !== undefined) obj.rotation.y = entity.dir;
+        obj.updateMatrixWorld(true);
         this.scene.add(obj);
         // lastX/lastZ start at the spawn position, not the origin — a
         // fresh instance's first sync() must not register a fake "distance
@@ -89,8 +98,9 @@ export class EntityLayer<T extends PositionedEntity> {
       const dz = entity.z - inst.lastZ;
       inst.lastX = entity.x;
       inst.lastZ = entity.z;
-      inst.obj.position.set(entity.x, this.yOffset, entity.z);
       if (entity.dir !== undefined) inst.obj.rotation.y = entity.dir;
+      inst.obj.position.set(entity.x, this.yOffset, entity.z);
+
       if (inst.gait) {
         // poseAt wants cumulative distance, not a per-frame delta (§11.2:
         // "phase from distance travelled, not from time") — a creature
@@ -98,6 +108,19 @@ export class EntityLayer<T extends PositionedEntity> {
         // of animating in place.
         inst.distance += Math.hypot(dx, dz);
         inst.gait.poseAt(inst.distance);
+        // The ground-plane position is then re-asserted, and that ordering
+        // is the fix for a model rendering somewhere other than where the
+        // simulation says the creature is. A gait solver poses limbs, but
+        // it works on the object it was handed and is free to move that
+        // object's root — shifting it to stop feet skating, or lifting it
+        // to keep them planted. The simulation owns where a creature
+        // stands, so x and z are written last and win. Height is
+        // deliberately NOT overwritten: on sloped or uneven ground the
+        // solver's y is the whole point of giving it a ground query, and
+        // stamping yOffset back over it would push the feet through the
+        // floor.
+        inst.obj.position.x = entity.x;
+        inst.obj.position.z = entity.z;
       }
     }
     for (const [id, inst] of this.instances) {
@@ -105,6 +128,12 @@ export class EntityLayer<T extends PositionedEntity> {
       this.scene.remove(inst.obj);
       this.instances.delete(id);
     }
+  }
+
+  /** The live object for one entity id, or null if it has none. Exists for
+   * placement tests — nothing in the app reads instances back out. */
+  objectFor(id: number): THREE.Object3D | null {
+    return this.instances.get(id)?.obj ?? null;
   }
 
   dispose(): void {
