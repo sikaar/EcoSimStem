@@ -12,6 +12,12 @@ import { AboutScreen } from './AboutScreen';
 export interface StartMenuProps {
   onNewRun: (mode: GameMode) => void;
   onResume: (save: SaveV1) => void;
+  /** Launches the original single-file V1 prototype (public/legacy.html)
+   * in its own screen, so the rebuild can be checked against it directly
+   * instead of from memory. Deliberately styled as a secondary action
+   * below the two real modes, not a third card beside them — it isn't a
+   * way to play, it's a reference to play against. */
+  onLegacy: () => void;
 }
 
 function timeAgo(ms: number): string {
@@ -104,7 +110,7 @@ const ghostButtonStyle: CSSProperties = {
   border: '1px solid var(--line)',
 };
 
-export function StartMenu({ onNewRun, onResume }: StartMenuProps) {
+export function StartMenu({ onNewRun, onResume, onLegacy }: StartMenuProps) {
   const [save, setSave] = useState<SaveV1 | null>(() => loadSave());
   const [aboutOpen, setAboutOpen] = useState(false);
 
@@ -157,8 +163,27 @@ export function StartMenu({ onNewRun, onResume }: StartMenuProps) {
         </div>
 
         <button
+          onClick={onLegacy}
+          style={{
+            marginTop: 16,
+            width: '100%',
+            background: 'transparent',
+            border: '1px solid var(--line)',
+            borderRadius: 4,
+            fontFamily: 'var(--mono)',
+            fontSize: 10,
+            letterSpacing: '0.06em',
+            color: 'var(--dim)',
+            padding: '8px 0',
+            cursor: 'pointer',
+          }}
+        >
+          ▸ LEGACY V1 <span style={{ color: 'var(--dim2)' }}>— original single-file prototype</span>
+        </button>
+
+        <button
           onClick={() => setAboutOpen(true)}
-          style={{ marginTop: 16, background: 'transparent', border: 0, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--dim)', cursor: 'pointer' }}
+          style={{ marginTop: 12, background: 'transparent', border: 0, fontFamily: 'var(--mono)', fontSize: 10, color: 'var(--dim)', cursor: 'pointer' }}
         >
           ⓘ ABOUT
         </button>
